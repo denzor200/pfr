@@ -1463,6 +1463,40 @@ constexpr T unsafe_declval() noexcept {
 #endif // BOOST_PFR_DETAIL_UNSAFE_DECLVAL_HPP
 
 
+// #include <boost/pfr/detail/type_identity.hpp>
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_TYPE_IDENTITY_HPP
+#define BOOST_PFR_DETAIL_TYPE_IDENTITY_HPP
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+#include <type_traits>  // for possible std::type_identity
+
+namespace boost { namespace pfr { namespace detail {
+  
+#if defined(__cpp_lib_type_identity)
+template< class T >
+using type_identity = std::type_identity<T>;
+#else
+template< class T >
+struct type_identity_impl {
+    using type = T;
+};
+
+template< class T >
+using type_identity = type_identity_impl<T>;
+#endif
+
+}}} // namespace boost::pfr::detail
+
+
+#endif // BOOST_PFR_DETAIL_TYPE_IDENTITY_HPP
+
 
 #include <climits>      // CHAR_BIT
 #include <type_traits>
@@ -1708,7 +1742,7 @@ constexpr std::size_t detect_fields_count_dispatch(size_t_<N>, int, int) noexcep
 
 ///////////////////// Returns fields count
 template <class T>
-constexpr std::size_t fields_count() noexcept {
+constexpr std::size_t fields_count(type_identity<T>) noexcept {
     using type = std::remove_cv_t<T>;
 
     static_assert(
@@ -1917,7 +1951,7 @@ constexpr auto tie_as_tuple(T& val) noexcept {
     !std::is_union<T>::value,
     "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
   );
-  typedef size_t_<boost::pfr::detail::fields_count<T>()> fields_count_tag;
+  typedef size_t_<boost::pfr::detail::fields_count(detail::type_identity<T>())> fields_count_tag;
   return boost::pfr::detail::tie_as_tuple(val, fields_count_tag{});
 }
 
@@ -2420,7 +2454,7 @@ struct loophole_type_list_selector<false /*IsCopyConstructible*/, T, U> {
 template <class T>
 auto tie_as_tuple_loophole_impl(T& lvalue) noexcept {
     using type = std::remove_cv_t<std::remove_reference_t<T>>;
-    using indexes = detail::make_index_sequence<fields_count<type>()>;
+    using indexes = detail::make_index_sequence<fields_count(detail::type_identity<type>())>;
     using loophole_type_list = typename detail::loophole_type_list_selector<
         std::is_copy_constructible<std::remove_all_extents_t<type>>::value, type, indexes
     >::type;
@@ -2582,6 +2616,8 @@ constexpr std::size_t get(const size_array<N>& a) noexcept {
 
 // #include <boost/pfr/detail/rvalue_t.hpp>
 
+// #include <boost/pfr/detail/type_identity.hpp>
+
 
 #ifdef __clang__
 #   pragma clang diagnostic push
@@ -2594,10 +2630,6 @@ constexpr std::size_t get(const size_array<N>& a) noexcept {
 namespace boost { namespace pfr { namespace detail {
 
 ///////////////////// General utility stuff
-
-template <class T> struct identity {
-    typedef T type;
-};
 
 template <class T>
 constexpr T construct_helper() noexcept { // adding const here allows to deal with copyable only types
@@ -2675,15 +2707,15 @@ using remove_1_ext = size_t_<
 
 ///////////////////// Forward declarations
 
-template <class Type> constexpr std::size_t type_to_id(identity<Type*>) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<const Type*>) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<const volatile Type*>) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<volatile Type*>) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<Type&>) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_enum<Type>::value>* = 0) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_empty<Type>::value>* = 0) noexcept;
-template <class Type> constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_union<Type>::value>* = 0) noexcept;
-template <class Type> constexpr size_array<sizeof(Type) * 3> type_to_id(identity<Type>, std::enable_if_t<!std::is_enum<Type>::value && !std::is_empty<Type>::value && !std::is_union<Type>::value>* = 0) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<Type*>) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<const Type*>) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<const volatile Type*>) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<volatile Type*>) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<Type&>) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_enum<Type>::value>* = 0) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_empty<Type>::value>* = 0) noexcept;
+template <class Type> constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_union<Type>::value>* = 0) noexcept;
+template <class Type> constexpr size_array<sizeof(Type) * 3> type_to_id(type_identity<Type>, std::enable_if_t<!std::is_enum<Type>::value && !std::is_empty<Type>::value && !std::is_union<Type>::value>* = 0) noexcept;
 
 template <std::size_t Index> constexpr auto id_to_type(size_t_<Index >, if_extension<Index, native_const_ptr_type> = 0) noexcept;
 template <std::size_t Index> constexpr auto id_to_type(size_t_<Index >, if_extension<Index, native_ptr_type> = 0) noexcept;
@@ -2695,7 +2727,7 @@ template <std::size_t Index> constexpr auto id_to_type(size_t_<Index >, if_exten
 ///////////////////// Definitions of type_to_id and id_to_type for fundamental types
 /// @cond
 #define BOOST_MAGIC_GET_REGISTER_TYPE(Type, Index)              \
-    constexpr std::size_t type_to_id(identity<Type>) noexcept { \
+    constexpr std::size_t type_to_id(type_identity<Type>) noexcept { \
         return Index;                                           \
     }                                                           \
     constexpr Type id_to_type( size_t_<Index > ) noexcept {     \
@@ -2736,8 +2768,8 @@ constexpr std::size_t tuple_end_tag                 = 25;
 
 ///////////////////// Definitions of type_to_id and id_to_type for types with extensions and nested types
 template <class Type>
-constexpr std::size_t type_to_id(identity<Type*>) noexcept {
-    constexpr auto unptr = typeid_conversions::type_to_id(identity<Type>{});
+constexpr std::size_t type_to_id(type_identity<Type*>) noexcept {
+    constexpr auto unptr = typeid_conversions::type_to_id(type_identity<Type>{});
     static_assert(
         std::is_same<const std::size_t, decltype(unptr)>::value,
         "====================> Boost.PFR: Pointers to user defined types are not supported."
@@ -2746,8 +2778,8 @@ constexpr std::size_t type_to_id(identity<Type*>) noexcept {
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<const Type*>) noexcept {
-    constexpr auto unptr = typeid_conversions::type_to_id(identity<Type>{});
+constexpr std::size_t type_to_id(type_identity<const Type*>) noexcept {
+    constexpr auto unptr = typeid_conversions::type_to_id(type_identity<Type>{});
     static_assert(
         std::is_same<const std::size_t, decltype(unptr)>::value,
         "====================> Boost.PFR: Const pointers to user defined types are not supported."
@@ -2756,8 +2788,8 @@ constexpr std::size_t type_to_id(identity<const Type*>) noexcept {
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<const volatile Type*>) noexcept {
-    constexpr auto unptr = typeid_conversions::type_to_id(identity<Type>{});
+constexpr std::size_t type_to_id(type_identity<const volatile Type*>) noexcept {
+    constexpr auto unptr = typeid_conversions::type_to_id(type_identity<Type>{});
     static_assert(
         std::is_same<const std::size_t, decltype(unptr)>::value,
         "====================> Boost.PFR: Const volatile pointers to user defined types are not supported."
@@ -2766,8 +2798,8 @@ constexpr std::size_t type_to_id(identity<const volatile Type*>) noexcept {
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<volatile Type*>) noexcept {
-    constexpr auto unptr = typeid_conversions::type_to_id(identity<Type>{});
+constexpr std::size_t type_to_id(type_identity<volatile Type*>) noexcept {
+    constexpr auto unptr = typeid_conversions::type_to_id(type_identity<Type>{});
     static_assert(
         std::is_same<const std::size_t, decltype(unptr)>::value,
         "====================> Boost.PFR: Volatile pointers to user defined types are not supported."
@@ -2776,8 +2808,8 @@ constexpr std::size_t type_to_id(identity<volatile Type*>) noexcept {
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<Type&>) noexcept {
-    constexpr auto unptr = typeid_conversions::type_to_id(identity<Type>{});
+constexpr std::size_t type_to_id(type_identity<Type&>) noexcept {
+    constexpr auto unptr = typeid_conversions::type_to_id(type_identity<Type>{});
     static_assert(
         std::is_same<const std::size_t, decltype(unptr)>::value,
         "====================> Boost.PFR: References to user defined types are not supported."
@@ -2786,18 +2818,18 @@ constexpr std::size_t type_to_id(identity<Type&>) noexcept {
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_enum<Type>::value>*) noexcept {
-    return typeid_conversions::type_to_id(identity<typename std::underlying_type<Type>::type >{});
+constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_enum<Type>::value>*) noexcept {
+    return typeid_conversions::type_to_id(type_identity<typename std::underlying_type<Type>::type >{});
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_empty<Type>::value>*) noexcept {
+constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_empty<Type>::value>*) noexcept {
     static_assert(!std::is_empty<Type>::value, "====================> Boost.PFR: Empty classes/structures as members are not supported.");
     return 0;
 }
 
 template <class Type>
-constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_union<Type>::value>*) noexcept {
+constexpr std::size_t type_to_id(type_identity<Type>, std::enable_if_t<std::is_union<Type>::value>*) noexcept {
     static_assert(
         !std::is_union<Type>::value,
         "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
@@ -2806,7 +2838,7 @@ constexpr std::size_t type_to_id(identity<Type>, std::enable_if_t<std::is_union<
 }
 
 template <class Type>
-constexpr size_array<sizeof(Type) * 3> type_to_id(identity<Type>, std::enable_if_t<!std::is_enum<Type>::value && !std::is_empty<Type>::value && !std::is_union<Type>::value>*) noexcept {
+constexpr size_array<sizeof(Type) * 3> type_to_id(type_identity<Type>, std::enable_if_t<!std::is_enum<Type>::value && !std::is_empty<Type>::value && !std::is_union<Type>::value>*) noexcept {
     constexpr auto t = detail::flat_array_of_type_ids<Type>();
     size_array<sizeof(Type) * 3> result {{tuple_begin_tag}};
     constexpr bool requires_tuplening = (
@@ -2876,7 +2908,7 @@ struct ubiq_val {
 
     template <class Type>
     constexpr operator Type() const noexcept {
-        constexpr auto typeids = typeid_conversions::type_to_id(identity<Type>{});
+        constexpr auto typeids = typeid_conversions::type_to_id(type_identity<Type>{});
         assign(typeids);
         return detail::construct_helper<Type>();
     }
@@ -2929,7 +2961,7 @@ constexpr void* flat_type_to_array_of_type_ids(std::size_t* types, std::index_se
 template <class T>
 constexpr size_array<sizeof(T) * 3> fields_count_and_type_ids_with_zeros() noexcept {
     size_array<sizeof(T) * 3> types{};
-    constexpr std::size_t N = detail::fields_count<T>();
+    constexpr std::size_t N = detail::fields_count(detail::type_identity<T>());
     detail::flat_type_to_array_of_type_ids<T, N>(types.data, detail::make_index_sequence<N>());
     return types;
 }
@@ -3136,7 +3168,7 @@ auto tie_as_tuple(T& val) noexcept {
         "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
     );
     static_assert(
-        boost::pfr::detail::is_flat_refelectable<T>( detail::make_index_sequence<boost::pfr::detail::fields_count<T>()>{} ),
+        boost::pfr::detail::is_flat_refelectable<T>( detail::make_index_sequence<boost::pfr::detail::fields_count(detail::type_identity<T>())>{} ),
         "====================> Boost.PFR: Not possible in C++14 to represent that type without loosing information. Change type definition or enable C++17"
     );
     return boost::pfr::detail::tie_as_flat_tuple(val);
@@ -3172,10 +3204,10 @@ struct is_constexpr_aggregate_initializable { // TODO: try to fix it
 
 
 template <class T, class F, std::size_t I0, std::size_t... I, class... Fields>
-void for_each_field_in_depth(T& t, F&& f, std::index_sequence<I0, I...>, identity<Fields>...);
+void for_each_field_in_depth(T& t, F&& f, std::index_sequence<I0, I...>, type_identity<Fields>...);
 
 template <class T, class F, class... Fields>
-void for_each_field_in_depth(T& t, F&& f, std::index_sequence<>, identity<Fields>...);
+void for_each_field_in_depth(T& t, F&& f, std::index_sequence<>, type_identity<Fields>...);
 
 template <class T, class F, class IndexSeq, class... Fields>
 struct next_step {
@@ -3188,8 +3220,8 @@ struct next_step {
              t,
              std::forward<F>(f),
              IndexSeq{},
-             identity<Fields>{}...,
-             identity<Field>{}
+             type_identity<Fields>{}...,
+             type_identity<Field>{}
          );
 
          return {};
@@ -3197,7 +3229,7 @@ struct next_step {
 };
 
 template <class T, class F, std::size_t I0, std::size_t... I, class... Fields>
-void for_each_field_in_depth(T& t, F&& f, std::index_sequence<I0, I...>, identity<Fields>...) {
+void for_each_field_in_depth(T& t, F&& f, std::index_sequence<I0, I...>, type_identity<Fields>...) {
     (void)std::add_const_t<std::remove_reference_t<T>>{
         Fields{}...,
         next_step<T, F, std::index_sequence<I...>, Fields...>{t, f},
@@ -3206,7 +3238,7 @@ void for_each_field_in_depth(T& t, F&& f, std::index_sequence<I0, I...>, identit
 }
 
 template <class T, class F, class... Fields>
-void for_each_field_in_depth(T& lvalue, F&& f, std::index_sequence<>, identity<Fields>...) {
+void for_each_field_in_depth(T& lvalue, F&& f, std::index_sequence<>, type_identity<Fields>...) {
     using tuple_type = sequence_tuple::tuple<Fields...>;
 
     offset_based_getter<std::remove_cv_t<std::remove_reference_t<T>>, tuple_type> getter;
@@ -3385,7 +3417,7 @@ namespace boost { namespace pfr {
 ///     std::array<int, boost::pfr::tuple_size<my_structure>::value > a;
 /// \endcode
 template <class T>
-using tuple_size = detail::size_t_< boost::pfr::detail::fields_count<T>() >;
+using tuple_size = detail::size_t_< boost::pfr::detail::fields_count(detail::type_identity<T>()) >;
 
 
 /// `tuple_size_v` is a template variable that contains fields count in a T and
@@ -3599,14 +3631,14 @@ constexpr auto structure_tie(T&&, std::enable_if_t< std::is_rvalue_reference<T&&
 /// \endcode
 template <class T, class F>
 void for_each_field(T&& value, F&& func) {
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
 
     ::boost::pfr::detail::for_each_field_dispatcher(
         value,
         [f = std::forward<F>(func)](auto&& t) mutable {
             // MSVC related workaround. Its lambdas do not capture constexprs.
             constexpr std::size_t fields_count_val_in_lambda
-                = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+                = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
 
             ::boost::pfr::detail::for_each_field_impl(
                 t,
@@ -3879,8 +3911,8 @@ namespace boost { namespace pfr { namespace detail {
 
     template <template <std::size_t, std::size_t> class Visitor, class T, class U>
     constexpr bool binary_visit(const T& x, const U& y) {
-        constexpr std::size_t fields_count_lhs = detail::fields_count<std::remove_reference_t<T>>();
-        constexpr std::size_t fields_count_rhs = detail::fields_count<std::remove_reference_t<U>>();
+        constexpr std::size_t fields_count_lhs = detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
+        constexpr std::size_t fields_count_rhs = detail::fields_count(detail::type_identity< std::remove_reference_t<U> >());
         constexpr std::size_t fields_count_min = detail::min_size(fields_count_lhs, fields_count_rhs);
         typedef Visitor<0, fields_count_min> visitor_t;
 
@@ -3891,7 +3923,7 @@ namespace boost { namespace pfr { namespace detail {
         ::boost::pfr::detail::for_each_field_dispatcher(
             x,
             [&result, &y](const auto& lhs) {
-                constexpr std::size_t fields_count_rhs_ = detail::fields_count<std::remove_reference_t<U>>();
+                constexpr std::size_t fields_count_rhs_ = detail::fields_count(detail::type_identity< std::remove_reference_t<U> >());
                 ::boost::pfr::detail::for_each_field_dispatcher(
                     y,
                     [&result, &lhs](const auto& rhs) {
@@ -4003,7 +4035,7 @@ namespace boost { namespace pfr {
     /// \returns combined hash of all the fields
     template <class T>
     std::size_t hash_fields(const T& x) {
-        constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+        constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
 #if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
         return detail::hash_impl<0, fields_count_val>::compute(detail::tie_as_tuple(x));
 #else
@@ -4013,7 +4045,7 @@ namespace boost { namespace pfr {
             [&result](const auto& lhs) {
                 // We can not reuse `fields_count_val` in lambda because compilers had issues with
                 // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-                constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+                constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
                 result = detail::hash_impl<0, fields_count_val_lambda>::compute(lhs);
             },
             detail::make_index_sequence<fields_count_val>{}
@@ -4178,7 +4210,7 @@ struct io_fields_impl {
 template <class Char, class Traits, class T>
 std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& out, io_fields_impl<const T&>&& x) {
     const T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
+    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity<T>());
     out << '{';
 #if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
     detail::print_impl<0, fields_count_val>::print(out, detail::tie_as_tuple(value));
@@ -4188,7 +4220,7 @@ std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& o
         [&out](const auto& val) {
             // We can not reuse `fields_count_val` in lambda because compilers had issues with
             // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
+            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity<T>());
             detail::print_impl<0, fields_count_val_lambda>::print(out, val);
         },
         detail::make_index_sequence<fields_count_val>{}
@@ -4206,7 +4238,7 @@ std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& o
 template <class Char, class Traits, class T>
 std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& in, io_fields_impl<T&>&& x) {
     T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
+    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity<T>());
 
     const auto prev_exceptions = in.exceptions();
     in.exceptions( typename std::basic_istream<Char, Traits>::iostate(0) );
@@ -4224,7 +4256,7 @@ std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& i
         [&in](const auto& val) {
             // We can not reuse `fields_count_val` in lambda because compilers had issues with
             // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
+            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity<T>());
             detail::read_impl<0, fields_count_val_lambda>::read(in, val);
         },
         detail::make_index_sequence<fields_count_val>{}
@@ -5030,7 +5062,7 @@ struct io_fields_impl {
 template <class Char, class Traits, class T>
 std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& out, io_fields_impl<const T&>&& x) {
     const T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
+    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity<T>());
     out << '{';
 #if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
     detail::print_impl<0, fields_count_val>::print(out, detail::tie_as_tuple(value));
@@ -5040,7 +5072,7 @@ std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& o
         [&out](const auto& val) {
             // We can not reuse `fields_count_val` in lambda because compilers had issues with
             // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
+            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity<T>());
             detail::print_impl<0, fields_count_val_lambda>::print(out, val);
         },
         detail::make_index_sequence<fields_count_val>{}
@@ -5058,7 +5090,7 @@ std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& o
 template <class Char, class Traits, class T>
 std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& in, io_fields_impl<T&>&& x) {
     T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
+    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity<T>());
 
     const auto prev_exceptions = in.exceptions();
     in.exceptions( typename std::basic_istream<Char, Traits>::iostate(0) );
@@ -5076,7 +5108,7 @@ std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& i
         [&in](const auto& val) {
             // We can not reuse `fields_count_val` in lambda because compilers had issues with
             // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
+            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity<T>());
             detail::read_impl<0, fields_count_val_lambda>::read(in, val);
         },
         detail::make_index_sequence<fields_count_val>{}
@@ -5434,7 +5466,7 @@ namespace boost { namespace pfr {
     /// \returns combined hash of all the fields
     template <class T>
     std::size_t hash_fields(const T& x) {
-        constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+        constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
 #if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
         return detail::hash_impl<0, fields_count_val>::compute(detail::tie_as_tuple(x));
 #else
@@ -5444,7 +5476,7 @@ namespace boost { namespace pfr {
             [&result](const auto& lhs) {
                 // We can not reuse `fields_count_val` in lambda because compilers had issues with
                 // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-                constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
+                constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count(detail::type_identity< std::remove_reference_t<T> >());
                 result = detail::hash_impl<0, fields_count_val_lambda>::compute(lhs);
             },
             detail::make_index_sequence<fields_count_val>{}
@@ -5491,7 +5523,7 @@ namespace boost { namespace pfr {
 ///     std::array<int, boost::pfr::tuple_size<my_structure>::value > a;
 /// \endcode
 template <class T>
-using tuple_size = detail::size_t_< boost::pfr::detail::fields_count<T>() >;
+using tuple_size = detail::size_t_< boost::pfr::detail::fields_count(detail::type_identity<T>()) >;
 
 
 /// `tuple_size_v` is a template variable that contains fields count in a T and
