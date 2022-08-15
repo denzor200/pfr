@@ -3342,24 +3342,9 @@ constexpr auto make_conststdtiedtuple_from_tietuple(const T& t, std::index_seque
 
 // #include <boost/pfr/detail/make_integer_sequence.hpp>
 
-// #include <boost/pfr/detail/tie_from_structure_tuple.hpp>
-// Copyright (c) 2018 Adam Butcher, Antony Polukhin
-// Copyright (c) 2019-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
-#define BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
-
-
-// #include <boost/pfr/detail/config.hpp>
-
-
-// #include <boost/pfr/detail/core.hpp>
-
-
-// #include <boost/pfr/detail/stdtuple.hpp>
+#include <type_traits>
+#include <utility>      // metaprogramming stuff
 
 // #include <boost/pfr/tuple_size.hpp>
 // Copyright (c) 2016-2021 Antony Polukhin
@@ -3397,7 +3382,8 @@ namespace boost { namespace pfr {
 ///     std::array<int, boost::pfr::tuple_size<my_structure>::value > a;
 /// \endcode
 template <class T>
-using tuple_size = detail::size_t_< boost::pfr::detail::fields_count<T>() >;
+struct tuple_size : detail::size_t_< boost::pfr::detail::fields_count<T>() > {};
+
 
 
 /// `tuple_size_v` is a template variable that contains fields count in a T and
@@ -3413,42 +3399,6 @@ constexpr std::size_t tuple_size_v = tuple_size<T>::value;
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_TUPLE_SIZE_HPP
-
-// #include <boost/pfr/detail/make_integer_sequence.hpp>
-
-
-#include <tuple>
-
-namespace boost { namespace pfr { namespace detail {
-
-/// \brief A `std::tuple` capable of de-structuring assignment used to support
-/// a tie of multiple lvalue references to fields of an aggregate T.
-///
-/// \sa boost::pfr::tie_from_structure
-template <typename... Elements>
-struct tie_from_structure_tuple : std::tuple<Elements&...> {
-    using base = std::tuple<Elements&...>;
-    using base::base;
-
-    template <typename T>
-    constexpr tie_from_structure_tuple& operator= (T const& t) {
-        base::operator=(
-            detail::make_stdtiedtuple_from_tietuple(
-                detail::tie_as_tuple(t),
-                detail::make_index_sequence<tuple_size_v<T>>()));
-        return *this;
-    }
-};
-
-}}} // namespace boost::pfr::detail
-
-#endif // BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
-
-
-#include <type_traits>
-#include <utility>      // metaprogramming stuff
-
-// #include <boost/pfr/tuple_size.hpp>
 
 
 /// \file boost/pfr/core.hpp
@@ -3507,17 +3457,7 @@ constexpr auto get(T&& val, std::enable_if_t< std::is_rvalue_reference<T&&>::val
 ///     std::vector< boost::pfr::tuple_element<0, my_structure>::type > v;
 /// \endcode
 template <std::size_t I, class T>
-using tuple_element = detail::sequence_tuple::tuple_element<I, decltype( ::boost::pfr::detail::tie_as_tuple(std::declval<T&>()) ) >;
-
-
-/// \brief Type of a field with index `I` in \aggregate `T`.
-///
-/// \b Example:
-/// \code
-///     std::vector< boost::pfr::tuple_element_t<0, my_structure> > v;
-/// \endcode
-template <std::size_t I, class T>
-using tuple_element_t = typename tuple_element<I, T>::type;
+struct tuple_element : detail::sequence_tuple::tuple_element<I, decltype( ::boost::pfr::detail::tie_as_tuple(std::declval<T&>()) ) > {};
 
 
 /// \brief Creates a `std::tuple` from fields of an \aggregate `val`.
@@ -3631,24 +3571,16 @@ void for_each_field(T&& value, F&& func) {
     );
 }
 
-/// \brief std::tie-like function that allows assigning to tied values from aggregates.
-///
-/// \returns an object with lvalue references to `args...`; on assignment of an \aggregate value to that
-/// object each field of an aggregate is assigned to the corresponding `args...` reference.
+
+
+/// \brief Type of a field with index `I` in \aggregate `T`.
 ///
 /// \b Example:
 /// \code
-///     auto f() {
-///       struct { struct { int x, y } p; short s; } res { { 4, 5 }, 6 };
-///       return res;
-///     }
-///     auto [p, s] = f();
-///     tie_from_structure(p, s) = f();
+///     std::vector< boost::pfr::tuple_element_t<0, my_structure> > v;
 /// \endcode
-template <typename... Elements>
-constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Elements&... args) noexcept {
-    return detail::tie_from_structure_tuple<Elements...>(args...);
-}
+template <std::size_t I, class T>
+using tuple_element_t = typename tuple_element<I, T>::type;
 
 }} // namespace boost::pfr
 
@@ -4992,6 +4924,111 @@ auto io(T&& value) noexcept {
 // #include <boost/pfr/ops_fields.hpp>
 
 // #include <boost/pfr/tuple_size.hpp>
+
+// #include <boost/pfr/tie_from_structure.hpp>
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_TIE_FROM_STRUCTURE_HPP
+#define BOOST_PFR_TIE_FROM_STRUCTURE_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// #include <boost/pfr/core.hpp>
+
+// TODO: inlude boost/pfr/view_fields.hpp
+// TODO: include boost/pfr/view.hpp
+
+// #include <boost/pfr/detail/tie_from_structure_tuple.hpp>
+// Copyright (c) 2018 Adam Butcher, Antony Polukhin
+// Copyright (c) 2019-2021 Antony Polukhin
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
+#define BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// #include <boost/pfr/detail/core.hpp>
+
+
+// #include <boost/pfr/detail/stdtuple.hpp>
+
+// #include <boost/pfr/tuple_size.hpp>
+
+// #include <boost/pfr/detail/make_integer_sequence.hpp>
+
+
+#include <tuple>
+
+namespace boost { namespace pfr { namespace detail {
+
+/// \brief A `std::tuple` capable of de-structuring assignment used to support
+/// a tie of multiple lvalue references to fields of an aggregate T.
+///
+/// \sa boost::pfr::tie_from_structure
+template <typename... Elements>
+struct tie_from_structure_tuple : std::tuple<Elements&...> {
+    using base = std::tuple<Elements&...>;
+    using base::base;
+
+    template <typename T>
+    constexpr tie_from_structure_tuple& operator= (T const& t) {
+        base::operator=(
+            detail::make_stdtiedtuple_from_tietuple(
+                detail::tie_as_tuple(t),
+                detail::make_index_sequence<tuple_size_v<T>>()));
+        return *this;
+    }
+};
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_TIE_FROM_STRUCTURE_TUPLE_HPP
+
+
+/// \file boost/pfr/tie_from_structure.hpp
+/// Contains one function `tie_from_structure` and all overloads of interface from `boost/pfr/core.hpp`, required by it function.
+///
+/// \b Synopsis:
+
+namespace boost { namespace pfr {
+
+/// \brief std::tie-like function that allows assigning to tied values from aggregates.
+///
+/// \returns an object with lvalue references to `args...`; on assignment of an \aggregate value to that
+/// object each field of an aggregate is assigned to the corresponding `args...` reference.
+///
+/// \b Example:
+/// \code
+///     auto f() {
+///       struct { struct { int x, y } p; short s; } res { { 4, 5 }, 6 };
+///       return res;
+///     }
+///     auto [p, s] = f();
+///     tie_from_structure(p, s) = f();
+/// \endcode
+///
+/// \note Caution you may get compiler errors when your program uses `boost::pfr::tie_from_structure` and includes
+///       only `boost/pfr/core.hpp`. If this happens, add inclusion 'boost/pfr/tie_from_structure.hpp' or just 
+///       replace all `boost/pfr/*.hpp` inclusions with one `boost/pfr.hpp` inclusion.
+///
+template <typename... Elements>
+constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Elements&... args) noexcept {
+    return detail::tie_from_structure_tuple<Elements...>(args...);
+}
+
+}}
+
+#endif // BOOST_PFR_TIE_FROM_STRUCTURE_HPP
 
 
 #endif // BOOST_PFR_HPP
