@@ -2,14 +2,7 @@
 	"project": "Boost.PFR",
 	"target": "include/boost/pfr/gen/pfr.hpp",
 	"sources": [
-		"include/boost/pfr/core.hpp",
-		"include/boost/pfr/functions_for.hpp",
-		"include/boost/pfr/functors.hpp",
-		"include/boost/pfr/io.hpp",
-		"include/boost/pfr/io_fields.hpp",
-		"include/boost/pfr/ops.hpp",
-		"include/boost/pfr/ops_fields.hpp",
-		"include/boost/pfr/tuple_size.hpp"
+		"include/boost/pfr.hpp"
 	],
 	"include_paths": ["include"]
 }
