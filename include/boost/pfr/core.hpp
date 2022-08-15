@@ -15,7 +15,6 @@
 #include <boost/pfr/detail/stdtuple.hpp>
 #include <boost/pfr/detail/for_each_field_impl.hpp>
 #include <boost/pfr/detail/make_integer_sequence.hpp>
-#include <boost/pfr/detail/tie_from_structure_tuple.hpp>
 
 #include <type_traits>
 #include <utility>      // metaprogramming stuff
@@ -200,25 +199,6 @@ void for_each_field(T&& value, F&& func) {
         },
         detail::make_index_sequence<fields_count_val>{}
     );
-}
-
-/// \brief std::tie-like function that allows assigning to tied values from aggregates.
-///
-/// \returns an object with lvalue references to `args...`; on assignment of an \aggregate value to that
-/// object each field of an aggregate is assigned to the corresponding `args...` reference.
-///
-/// \b Example:
-/// \code
-///     auto f() {
-///       struct { struct { int x, y } p; short s; } res { { 4, 5 }, 6 };
-///       return res;
-///     }
-///     auto [p, s] = f();
-///     tie_from_structure(p, s) = f();
-/// \endcode
-template <typename... Elements>
-constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Elements&... args) noexcept {
-    return detail::tie_from_structure_tuple<Elements...>(args...);
 }
 
 }} // namespace boost::pfr
