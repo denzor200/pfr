@@ -3,9 +3,21 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef BOOST_PFR_HPP
+#define BOOST_PFR_HPP
+
+/// \file boost/pfr.hpp
+/// Includes all the Boost.PFR headers
+
+// #include <boost/pfr/core.hpp>
+// Copyright (c) 2016-2021 Antony Polukhin
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef BOOST_PFR_CORE_HPP
 #define BOOST_PFR_CORE_HPP
-#pragma once
+
 
 // #include <boost/pfr/detail/config.hpp>
 // Copyright (c) 2016-2021 Antony Polukhin
@@ -3641,6 +3653,8 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_CORE_HPP
+
+// #include <boost/pfr/functions_for.hpp>
 // Copyright (c) 2016-2021 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -3648,7 +3662,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 
 #ifndef BOOST_PFR_FUNCTIONS_FOR_HPP
 #define BOOST_PFR_FUNCTIONS_FOR_HPP
-#pragma once
+
 
 // #include <boost/pfr/detail/config.hpp>
 
@@ -4365,6 +4379,8 @@ auto io_fields(T&& value) noexcept {
 
 #endif // BOOST_PFR_FUNCTIONS_FOR_HPP
 
+
+// #include <boost/pfr/functors.hpp>
 // Copyright (c) 2016-2021 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -4372,7 +4388,7 @@ auto io_fields(T&& value) noexcept {
 
 #ifndef BOOST_PFR_FUNCTORS_HPP
 #define BOOST_PFR_FUNCTORS_HPP
-#pragma once
+
 
 // #include <boost/pfr/detail/config.hpp>
 
@@ -4850,6 +4866,8 @@ template <class T> struct hash {
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_FUNCTORS_HPP
+
+// #include <boost/pfr/io.hpp>
 // Copyright (c) 2016-2021 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -4857,7 +4875,7 @@ template <class T> struct hash {
 
 #ifndef BOOST_PFR_IO_HPP
 #define BOOST_PFR_IO_HPP
-#pragma once
+
 
 // #include <boost/pfr/detail/config.hpp>
 
@@ -4966,544 +4984,14 @@ auto io(T&& value) noexcept {
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_IO_HPP
-// Copyright (c) 2016-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+// #include <boost/pfr/io_fields.hpp>
 
-#ifndef BOOST_PFR_IO_FIELDS_HPP
-#define BOOST_PFR_IO_FIELDS_HPP
-#pragma once
+// #include <boost/pfr/ops.hpp>
 
-// #include <boost/pfr/detail/config.hpp>
-
-
-// #include <boost/pfr/detail/core.hpp>
-
-
-#include <type_traits>
-#include <utility>      // metaprogramming stuff
-
-// #include <boost/pfr/detail/sequence_tuple.hpp>
-
-// #include <boost/pfr/detail/io.hpp>
-
-// #include <boost/pfr/detail/make_integer_sequence.hpp>
+// #include <boost/pfr/ops_fields.hpp>
 
 // #include <boost/pfr/tuple_size.hpp>
 
 
-/// \file boost/pfr/io_fields.hpp
-/// Contains IO manupulator \forcedlink{io_fields} to read/write \aggregate `value` field-by-field.
-///
-/// \b Example:
-/// \code
-///     struct my_struct {
-///         int i;
-///         short s;
-///     };
-///
-///     std::ostream& operator<<(std::ostream& os, const my_struct& x) {
-///         return os << boost::pfr::io_fields(x);  // Equivalent to: os << "{ " << x.i << " ," <<  x.s << " }"
-///     }
-///
-///     std::istream& operator>>(std::istream& is, my_struct& x) {
-///         return is >> boost::pfr::io_fields(x);  // Equivalent to: is >> "{ " >> x.i >> " ," >>  x.s >> " }"
-///     }
-/// \endcode
-///
-/// \podops for other ways to define operators and more details.
-///
-/// \b Synopsis:
-
-namespace boost { namespace pfr {
-
-namespace detail {
-
-template <class T>
-struct io_fields_impl {
-    T value;
-};
-
-
-template <class Char, class Traits, class T>
-std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& out, io_fields_impl<const T&>&& x) {
-    const T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
-    out << '{';
-#if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
-    detail::print_impl<0, fields_count_val>::print(out, detail::tie_as_tuple(value));
-#else
-    ::boost::pfr::detail::for_each_field_dispatcher(
-        value,
-        [&out](const auto& val) {
-            // We can not reuse `fields_count_val` in lambda because compilers had issues with
-            // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
-            detail::print_impl<0, fields_count_val_lambda>::print(out, val);
-        },
-        detail::make_index_sequence<fields_count_val>{}
-    );
-#endif
-    return out << '}';
-}
-
-
-template <class Char, class Traits, class T>
-std::basic_ostream<Char, Traits>& operator<<(std::basic_ostream<Char, Traits>& out, io_fields_impl<T>&& x) {
-    return out << io_fields_impl<const std::remove_reference_t<T>&>{x.value};
-}
-
-template <class Char, class Traits, class T>
-std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& in, io_fields_impl<T&>&& x) {
-    T& value = x.value;
-    constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<T>();
-
-    const auto prev_exceptions = in.exceptions();
-    in.exceptions( typename std::basic_istream<Char, Traits>::iostate(0) );
-    const auto prev_flags = in.flags( typename std::basic_istream<Char, Traits>::fmtflags(0) );
-
-    char parenthis = {};
-    in >> parenthis;
-    if (parenthis != '{') in.setstate(std::basic_istream<Char, Traits>::failbit);
-
-#if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
-    detail::read_impl<0, fields_count_val>::read(in, detail::tie_as_tuple(value));
-#else
-    ::boost::pfr::detail::for_each_field_dispatcher(
-        value,
-        [&in](const auto& val) {
-            // We can not reuse `fields_count_val` in lambda because compilers had issues with
-            // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-            constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<T>();
-            detail::read_impl<0, fields_count_val_lambda>::read(in, val);
-        },
-        detail::make_index_sequence<fields_count_val>{}
-    );
-#endif
-
-    in >> parenthis;
-    if (parenthis != '}') in.setstate(std::basic_istream<Char, Traits>::failbit);
-
-    in.flags(prev_flags);
-    in.exceptions(prev_exceptions);
-
-    return in;
-}
-
-template <class Char, class Traits, class T>
-std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& in, io_fields_impl<const T&>&& ) {
-    static_assert(sizeof(T) && false, "====================> Boost.PFR: Attempt to use istream operator on a boost::pfr::io_fields wrapped type T with const qualifier.");
-    return in;
-}
-
-template <class Char, class Traits, class T>
-std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& in, io_fields_impl<T>&& ) {
-    static_assert(sizeof(T) && false, "====================> Boost.PFR: Attempt to use istream operator on a boost::pfr::io_fields wrapped temporary of type T.");
-    return in;
-}
-
-} // namespace detail
-
-/// IO manupulator to read/write \aggregate `value` field-by-field.
-///
-/// \b Example:
-/// \code
-///     struct my_struct {
-///         int i;
-///         short s;
-///     };
-///
-///     std::ostream& operator<<(std::ostream& os, const my_struct& x) {
-///         return os << boost::pfr::io_fields(x);  // Equivalent to: os << "{ " << x.i << " ," <<  x.s << " }"
-///     }
-///
-///     std::istream& operator>>(std::istream& is, my_struct& x) {
-///         return is >> boost::pfr::io_fields(x);  // Equivalent to: is >> "{ " >> x.i >> " ," >>  x.s >> " }"
-///     }
-/// \endcode
-///
-/// Input and output streaming operators for `boost::pfr::io_fields` are symmetric, meaning that you get the original value by streaming it and
-/// reading back if each fields streaming operator is symmetric.
-///
-/// \customio
-template <class T>
-auto io_fields(T&& value) noexcept {
-    return detail::io_fields_impl<T>{std::forward<T>(value)};
-}
-
-}} // namespace boost::pfr
-
-#endif // BOOST_PFR_IO_FIELDS_HPP
-// Copyright (c) 2016-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-
-#ifndef BOOST_PFR_OPS_HPP
-#define BOOST_PFR_OPS_HPP
-#pragma once
-
-// #include <boost/pfr/detail/config.hpp>
-
-
-// #include <boost/pfr/detail/detectors.hpp>
-
-// #include <boost/pfr/ops_fields.hpp>
-
-
-/// \file boost/pfr/ops.hpp
-/// Contains comparison and hashing functions.
-/// If type is comparable using its own operator or its conversion operator, then the types operator is used. Otherwise
-/// the operation is done via corresponding function from boost/pfr/ops.hpp header.
-///
-/// \b Example:
-/// \code
-///     #include <boost/pfr/ops.hpp>
-///     struct comparable_struct {      // No operators defined for that structure
-///         int i; short s; char data[7]; bool bl; int a,b,c,d,e,f;
-///     };
-///     // ...
-///
-///     comparable_struct s1 {0, 1, "Hello", false, 6,7,8,9,10,11};
-///     comparable_struct s2 {0, 1, "Hello", false, 6,7,8,9,10,11111};
-///     assert(boost::pfr::lt(s1, s2));
-/// \endcode
-///
-/// \podops for other ways to define operators and more details.
-///
-/// \b Synopsis:
-namespace boost { namespace pfr {
-
-namespace detail {
-
-///////////////////// Helper typedefs that are used by all the ops
-    template <template <class, class> class Detector, class T, class U>
-    using enable_not_comp_base_t = std::enable_if_t<
-        not_appliable<Detector, T const&, U const&>::value,
-        bool
-    >;
-
-    template <template <class, class> class Detector, class T, class U>
-    using enable_comp_base_t = std::enable_if_t<
-        !not_appliable<Detector, T const&, U const&>::value,
-        bool
-    >;
-///////////////////// std::enable_if_t like functions that enable only if types do not support operation
-
-    template <class T, class U> using enable_not_eq_comp_t = enable_not_comp_base_t<comp_eq_detector, T, U>;
-    template <class T, class U> using enable_not_ne_comp_t = enable_not_comp_base_t<comp_ne_detector, T, U>;
-    template <class T, class U> using enable_not_lt_comp_t = enable_not_comp_base_t<comp_lt_detector, T, U>;
-    template <class T, class U> using enable_not_le_comp_t = enable_not_comp_base_t<comp_le_detector, T, U>;
-    template <class T, class U> using enable_not_gt_comp_t = enable_not_comp_base_t<comp_gt_detector, T, U>;
-    template <class T, class U> using enable_not_ge_comp_t = enable_not_comp_base_t<comp_ge_detector, T, U>;
-
-    template <class T> using enable_not_hashable_t = std::enable_if_t<
-        not_appliable<hash_detector, const T&, const T&>::value,
-        std::size_t
-    >;
-///////////////////// std::enable_if_t like functions that enable only if types do support operation
-
-    template <class T, class U> using enable_eq_comp_t = enable_comp_base_t<comp_eq_detector, T, U>;
-    template <class T, class U> using enable_ne_comp_t = enable_comp_base_t<comp_ne_detector, T, U>;
-    template <class T, class U> using enable_lt_comp_t = enable_comp_base_t<comp_lt_detector, T, U>;
-    template <class T, class U> using enable_le_comp_t = enable_comp_base_t<comp_le_detector, T, U>;
-    template <class T, class U> using enable_gt_comp_t = enable_comp_base_t<comp_gt_detector, T, U>;
-    template <class T, class U> using enable_ge_comp_t = enable_comp_base_t<comp_ge_detector, T, U>;
-
-    template <class T> using enable_hashable_t = std::enable_if_t<
-        !not_appliable<hash_detector, const T&, const T&>::value,
-        std::size_t
-    >;
-} // namespace detail
-
-
-/// \brief Compares lhs and rhs for equality using their own comparison and conversion operators; if no operators avalable returns \forcedlink{eq_fields}(lhs, rhs).
-///
-/// \returns true if lhs is equal to rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_eq_comp_t<T, U> eq(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::eq_fields(lhs, rhs);
-}
-
-/// \overload eq
-template <class T, class U>
-constexpr detail::enable_eq_comp_t<T, U> eq(const T& lhs, const U& rhs) {
-    return lhs == rhs;
-}
-
-
-/// \brief Compares lhs and rhs for inequality using their own comparison and conversion operators; if no operators avalable returns \forcedlink{ne_fields}(lhs, rhs).
-///
-/// \returns true if lhs is not equal to rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_ne_comp_t<T, U> ne(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::ne_fields(lhs, rhs);
-}
-
-/// \overload ne
-template <class T, class U>
-constexpr detail::enable_ne_comp_t<T, U> ne(const T& lhs, const U& rhs) {
-    return lhs != rhs;
-}
-
-
-/// \brief Compares lhs and rhs for less-than using their own comparison and conversion operators; if no operators avalable returns \forcedlink{lt_fields}(lhs, rhs).
-///
-/// \returns true if lhs is less than rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_lt_comp_t<T, U> lt(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::lt_fields(lhs, rhs);
-}
-
-/// \overload lt
-template <class T, class U>
-constexpr detail::enable_lt_comp_t<T, U> lt(const T& lhs, const U& rhs) {
-    return lhs < rhs;
-}
-
-
-/// \brief Compares lhs and rhs for greater-than using their own comparison and conversion operators; if no operators avalable returns \forcedlink{lt_fields}(lhs, rhs).
-///
-/// \returns true if lhs is greater than rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_gt_comp_t<T, U> gt(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::gt_fields(lhs, rhs);
-}
-
-/// \overload gt
-template <class T, class U>
-constexpr detail::enable_gt_comp_t<T, U> gt(const T& lhs, const U& rhs) {
-    return lhs > rhs;
-}
-
-
-/// \brief Compares lhs and rhs for less-equal using their own comparison and conversion operators; if no operators avalable returns \forcedlink{le_fields}(lhs, rhs).
-///
-/// \returns true if lhs is less or equal to rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_le_comp_t<T, U> le(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::le_fields(lhs, rhs);
-}
-
-/// \overload le
-template <class T, class U>
-constexpr detail::enable_le_comp_t<T, U> le(const T& lhs, const U& rhs) {
-    return lhs <= rhs;
-}
-
-
-/// \brief Compares lhs and rhs for greater-equal using their own comparison and conversion operators; if no operators avalable returns \forcedlink{ge_fields}(lhs, rhs).
-///
-/// \returns true if lhs is greater or equal to rhs; false otherwise
-template <class T, class U>
-constexpr detail::enable_not_ge_comp_t<T, U> ge(const T& lhs, const U& rhs) noexcept {
-    return boost::pfr::ge_fields(lhs, rhs);
-}
-
-/// \overload ge
-template <class T, class U>
-constexpr detail::enable_ge_comp_t<T, U> ge(const T& lhs, const U& rhs) {
-    return lhs >= rhs;
-}
-
-
-/// \brief Hashes value using its own std::hash specialization; if no std::hash specialization avalable returns \forcedlink{hash_fields}(value).
-///
-/// \returns std::size_t with hash of the value
-template <class T>
-constexpr detail::enable_not_hashable_t<T> hash_value(const T& value) noexcept {
-    return boost::pfr::hash_fields(value);
-}
-
-/// \overload hash_value
-template <class T>
-constexpr detail::enable_hashable_t<T> hash_value(const T& value) {
-    return std::hash<T>{}(value);
-}
-
-}} // namespace boost::pfr
-
-#endif // BOOST_PFR_OPS_HPP
-// Copyright (c) 2016-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-
-#ifndef BOOST_PFR_OPS_FIELDS_HPP
-#define BOOST_PFR_OPS_FIELDS_HPP
-#pragma once
-
-// #include <boost/pfr/detail/config.hpp>
-
-
-// #include <boost/pfr/core.hpp>
-
-// #include <boost/pfr/detail/functional.hpp>
-
-
-/// \file boost/pfr/ops_fields.hpp
-/// Contains field-by-fields comparison and hash functions.
-///
-/// \b Example:
-/// \code
-///     #include <boost/pfr/ops_fields.hpp>
-///     struct comparable_struct {      // No operators defined for that structure
-///         int i; short s;
-///     };
-///     // ...
-///
-///     comparable_struct s1 {0, 1};
-///     comparable_struct s2 {0, 2};
-///     assert(boost::pfr::lt_fields(s1, s2));
-/// \endcode
-///
-/// \podops for other ways to define operators and more details.
-///
-/// \b Synopsis:
-namespace boost { namespace pfr {
-
-    /// Does a field-by-field equality comparison.
-    ///
-    /// \returns `L == R && tuple_size_v<T> == tuple_size_v<U>`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool eq_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::equal_impl>(lhs, rhs);
-    }
-
-
-    /// Does a field-by-field inequality comparison.
-    ///
-    /// \returns `L != R || tuple_size_v<T> != tuple_size_v<U>`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool ne_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::not_equal_impl>(lhs, rhs);
-    }
-
-    /// Does a field-by-field greter comparison.
-    ///
-    /// \returns `L > R || (L == R && tuple_size_v<T> > tuple_size_v<U>)`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool gt_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::greater_impl>(lhs, rhs);
-    }
-
-
-    /// Does a field-by-field less comparison.
-    ///
-    /// \returns `L < R || (L == R && tuple_size_v<T> < tuple_size_v<U>)`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool lt_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::less_impl>(lhs, rhs);
-    }
-
-
-    /// Does a field-by-field greater equal comparison.
-    ///
-    /// \returns `L > R || (L == R && tuple_size_v<T> >= tuple_size_v<U>)`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool ge_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::greater_equal_impl>(lhs, rhs);
-    }
-
-
-    /// Does a field-by-field less equal comparison.
-    ///
-    /// \returns `L < R || (L == R && tuple_size_v<T> <= tuple_size_v<U>)`, where `L` and
-    /// `R` are the results of calling `std::tie` on first `N` fields of `lhs` and
-    // `rhs` respectively; `N` is `std::min(tuple_size_v<T>, tuple_size_v<U>)`.
-    template <class T, class U>
-    constexpr bool le_fields(const T& lhs, const U& rhs) noexcept {
-        return detail::binary_visit<detail::less_equal_impl>(lhs, rhs);
-    }
-
-
-    /// Does a field-by-field hashing.
-    ///
-    /// \returns combined hash of all the fields
-    template <class T>
-    std::size_t hash_fields(const T& x) {
-        constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
-#if BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE
-        return detail::hash_impl<0, fields_count_val>::compute(detail::tie_as_tuple(x));
-#else
-        std::size_t result = 0;
-        ::boost::pfr::detail::for_each_field_dispatcher(
-            x,
-            [&result](const auto& lhs) {
-                // We can not reuse `fields_count_val` in lambda because compilers had issues with
-                // passing constexpr variables into lambdas. Computing is again is the most portable solution.
-                constexpr std::size_t fields_count_val_lambda = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
-                result = detail::hash_impl<0, fields_count_val_lambda>::compute(lhs);
-            },
-            detail::make_index_sequence<fields_count_val>{}
-        );
-
-        return result;
-#endif
-    }
-}} // namespace boost::pfr
-
-#endif // BOOST_PFR_OPS_HPP
-// Copyright (c) 2016-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-
-
-#ifndef BOOST_PFR_TUPLE_SIZE_HPP
-#define BOOST_PFR_TUPLE_SIZE_HPP
-#pragma once
-
-// #include <boost/pfr/detail/config.hpp>
-
-
-#include <type_traits>
-#include <utility>      // metaprogramming stuff
-
-// #include <boost/pfr/detail/sequence_tuple.hpp>
-
-// #include <boost/pfr/detail/fields_count.hpp>
-
-
-/// \file boost/pfr/tuple_size.hpp
-/// Contains tuple-like interfaces to get fields count \forcedlink{tuple_size}, \forcedlink{tuple_size_v}.
-///
-/// \b Synopsis:
-namespace boost { namespace pfr {
-
-/// Has a static const member variable `value` that contains fields count in a T.
-/// Works for any T that supports aggregate initialization.
-///
-/// \b Example:
-/// \code
-///     std::array<int, boost::pfr::tuple_size<my_structure>::value > a;
-/// \endcode
-template <class T>
-using tuple_size = detail::size_t_< boost::pfr::detail::fields_count<T>() >;
-
-
-/// `tuple_size_v` is a template variable that contains fields count in a T and
-/// works for any T that supports aggregate initialization.
-///
-/// \b Example:
-/// \code
-///     std::array<int, boost::pfr::tuple_size_v<my_structure> > a;
-/// \endcode
-template <class T>
-constexpr std::size_t tuple_size_v = tuple_size<T>::value;
-
-}} // namespace boost::pfr
-
-#endif // BOOST_PFR_TUPLE_SIZE_HPP
+#endif // BOOST_PFR_HPP
