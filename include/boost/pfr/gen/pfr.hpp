@@ -1490,6 +1490,9 @@ constexpr T unsafe_declval() noexcept {
 
 namespace boost { namespace pfr { namespace detail {
 
+///////////////////// Tag that can be used to say that this type is not reflectable(for internal use only)
+struct guaranteed_nonreflectable {};
+
 ///////////////////// Structure that can be converted to reference to anything
 struct ubiq_lref_constructor {
     std::size_t ignore;
@@ -1726,6 +1729,11 @@ constexpr std::size_t fields_count() noexcept {
     static_assert(
         !std::is_reference<type>::value,
         "====================> Boost.PFR: Attempt to get fields count on a reference. This is not allowed because that could hide an issue and different library users expect different behavior in that case."
+    );
+
+    static_assert(
+        !std::is_base_of<guaranteed_nonreflectable, type>::value,
+        "====================> Boost.PFR: Type is non-reflectable"
     );
 
 #if !BOOST_PFR_HAS_GUARANTEED_COPY_ELISION
@@ -4957,14 +4965,7 @@ auto io(T&& value) noexcept {
 // #include <boost/pfr/detail/config.hpp>
 
 
-// #include <boost/pfr/detail/core.hpp>
-
-
-// #include <boost/pfr/detail/stdtuple.hpp>
-
-// #include <boost/pfr/tuple_size.hpp>
-
-// #include <boost/pfr/detail/make_integer_sequence.hpp>
+// #include <boost/pfr/core.hpp>
 
 
 #include <tuple>
@@ -4982,10 +4983,7 @@ struct tie_from_structure_tuple : std::tuple<Elements&...> {
 
     template <typename T>
     constexpr tie_from_structure_tuple& operator= (T const& t) {
-        base::operator=(
-            detail::make_stdtiedtuple_from_tietuple(
-                detail::tie_as_tuple(t),
-                detail::make_index_sequence<tuple_size_v<T>>()));
+        base::operator=(boost::pfr::structure_tie(t));
         return *this;
     }
 };
