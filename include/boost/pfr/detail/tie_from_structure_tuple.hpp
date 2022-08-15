@@ -10,11 +10,7 @@
 
 #include <boost/pfr/detail/config.hpp>
 
-#include <boost/pfr/detail/core.hpp>
-
-#include <boost/pfr/detail/stdtuple.hpp>
-#include <boost/pfr/tuple_size.hpp>
-#include <boost/pfr/detail/make_integer_sequence.hpp>
+#include <boost/pfr/core.hpp>
 
 #include <tuple>
 
@@ -31,10 +27,7 @@ struct tie_from_structure_tuple : std::tuple<Elements&...> {
 
     template <typename T>
     constexpr tie_from_structure_tuple& operator= (T const& t) {
-        base::operator=(
-            detail::make_stdtiedtuple_from_tietuple(
-                detail::tie_as_tuple(t),
-                detail::make_index_sequence<tuple_size_v<T>>()));
+        base::operator=(boost::pfr::structure_tie(t));
         return *this;
     }
 };
