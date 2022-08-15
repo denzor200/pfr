@@ -3,6 +3,12 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef BOOST_PFR_TIE_FROM_STRUCTURE_HPP
+#define BOOST_PFR_TIE_FROM_STRUCTURE_HPP
+#pragma once
+
+#include <boost/pfr/detail/config.hpp>
+
 #include <boost/pfr/core.hpp>
 // TODO: inlude boost/pfr/view_fields.hpp
 // TODO: include boost/pfr/view.hpp
@@ -42,3 +48,4 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 
 }}
 
+#endif // BOOST_PFR_TIE_FROM_STRUCTURE_HPP
