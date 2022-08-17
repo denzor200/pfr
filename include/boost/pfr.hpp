@@ -18,5 +18,6 @@
 #include <boost/pfr/ops_fields.hpp>
 #include <boost/pfr/tuple_size.hpp>
 #include <boost/pfr/tie_from_structure.hpp>
+#include <boost/pfr/draft.hpp>
 
 #endif // BOOST_PFR_HPP
