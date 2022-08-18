@@ -5118,28 +5118,23 @@ struct is_reflectable<T, WHAT_FOR> : std::integral_constant<bool, true> {       
 };                                                                                                                                          \
 }}
 
-// TODO: Rename BOOST_PFR_REGISTRATE_REFLECTABLE and add macro for registrate reflectable in one library
-
 
 /////////////////////////////////////////////////////////
 // view_fields.hpp
 namespace boost { namespace pfr {
 
 namespace detail {
-template <class T, class Enable = void>
-struct view_impl;
 
 template <class T>
-struct view_impl<T, std::enable_if_t<std::is_reference<T>::value>> : guaranteed_nonreflectable {
+struct view_impl : guaranteed_nonreflectable {
     T value;
 };
 
-template <class T>
-struct view_impl<T, std::enable_if_t<!std::is_reference<T>::value>> : guaranteed_nonreflectable {
-    T&& value; // TODO: check for decltype(value)
-};
-
 } // namespace detail
+
+template<class T, class WhatFor>
+struct is_reflectable<detail::view_impl<T>, WhatFor> : std::integral_constant<bool, true> {
+};
 
 template<class T>
 struct is_view<detail::view_impl<T>> : std::integral_constant<bool, true> {
@@ -5151,7 +5146,22 @@ auto view(T&& value) noexcept {
 }
 
 template<std::size_t I, class T>
-constexpr decltype(auto) get( detail::view_impl<T> t ) noexcept {
+constexpr decltype(auto) get( detail::view_impl<T>& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
+
+template<std::size_t I, class T>
+constexpr decltype(auto) get( detail::view_impl<T>&& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
+
+template<std::size_t I, class T>
+constexpr decltype(auto) get( const detail::view_impl<T>& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
+
+template<std::size_t I, class T>
+constexpr decltype(auto) get( const detail::view_impl<T>&& t ) noexcept {
     return boost::pfr::get<I>(std::forward<T>(t.value));
 }
 
@@ -5161,17 +5171,62 @@ struct tuple_element<I, detail::view_impl<T> >
 {};
 
 template <class T>
-constexpr auto structure_to_tuple(detail::view_impl<T> t) noexcept {
+constexpr auto structure_to_tuple(detail::view_impl<T>& t) noexcept {
     return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
 }
 
 template <class T>
-constexpr auto structure_tie(detail::view_impl<T> t) noexcept {
+constexpr auto structure_to_tuple(detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_to_tuple(const detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_to_tuple(const detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(const detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(const detail::view_impl<T>&& t) noexcept {
     return boost::pfr::structure_tie(std::forward<T>(t.value));
 }
 
 template <class T, class F>
-void for_each_field(detail::view_impl<T> t, F&& func) {
+void for_each_field(detail::view_impl<T>& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(detail::view_impl<T>&& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(const detail::view_impl<T>& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(const detail::view_impl<T>&& t, F&& func) {
     boost::pfr::for_each_field(std::forward<T>(t.value), func);
 }
 
