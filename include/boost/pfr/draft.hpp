@@ -99,10 +99,6 @@ struct view_impl : guaranteed_nonreflectable {
 
 } // namespace detail
 
-template<class T, class WhatFor>
-struct is_reflectable<detail::view_impl<T>, WhatFor> : std::integral_constant<bool, true> {
-};
-
 template<class T>
 struct is_view<detail::view_impl<T>> : std::integral_constant<bool, true> {
 };
