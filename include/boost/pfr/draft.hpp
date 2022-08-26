@@ -154,8 +154,11 @@ namespace detail {
 template<class T>
 struct view_impl : guaranteed_nonreflectable {
     T value;
-    view_impl( view_impl&& ) = default;
-    view_impl& operator=( view_impl&& ) = default;
+
+    // required by Boost Spirit X3
+    constexpr operator detail::remove_cvref_t<T>() && {
+        return std::move(value);
+    }
 };
 
 } // namespace detail
