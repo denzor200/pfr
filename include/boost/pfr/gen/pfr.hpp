@@ -5160,6 +5160,9 @@ namespace detail {
 
 template<class T>
 struct view_impl : view_impl_base<T>, guaranteed_nonreflectable {
+    
+    view_impl() = default;
+    
     template<typename U>
     explicit view_impl(U&& value, std::enable_if_t<std::is_constructible<T, U&&>::value>* = nullptr)
         : view_impl_base<T>{std::forward<U>(value)}
