@@ -5161,6 +5161,8 @@ namespace detail {
 template<class T>
 struct view_impl : guaranteed_nonreflectable {
     T value;
+    view_impl( view_impl&& ) = default;
+    view_impl& operator=( view_impl&& ) = default;
 };
 
 } // namespace detail
