@@ -5215,9 +5215,23 @@ auto view(T&& value) noexcept {
 
 template<class T>
 using view_t = decltype(boost::pfr::view(std::declval<T>()));
+template<std::size_t I, class T>
+constexpr decltype(auto) get( detail::view_impl<T>& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
 
 template<std::size_t I, class T>
-constexpr decltype(auto) get( detail::view_impl<T> t ) noexcept {
+constexpr decltype(auto) get( detail::view_impl<T>&& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
+
+template<std::size_t I, class T>
+constexpr decltype(auto) get( const detail::view_impl<T>& t ) noexcept {
+    return boost::pfr::get<I>(std::forward<T>(t.value));
+}
+
+template<std::size_t I, class T>
+constexpr decltype(auto) get( const detail::view_impl<T>&& t ) noexcept {
     return boost::pfr::get<I>(std::forward<T>(t.value));
 }
 
@@ -5227,17 +5241,62 @@ struct tuple_element<I, detail::view_impl<T> >
 {};
 
 template <class T>
-constexpr auto structure_to_tuple(detail::view_impl<T> t) noexcept {
+constexpr auto structure_to_tuple(detail::view_impl<T>& t) noexcept {
     return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
 }
 
 template <class T>
-constexpr auto structure_tie(detail::view_impl<T> t) noexcept {
+constexpr auto structure_to_tuple(detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_to_tuple(const detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_to_tuple(const detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_to_tuple(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(detail::view_impl<T>&& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(const detail::view_impl<T>& t) noexcept {
+    return boost::pfr::structure_tie(std::forward<T>(t.value));
+}
+
+template <class T>
+constexpr auto structure_tie(const detail::view_impl<T>&& t) noexcept {
     return boost::pfr::structure_tie(std::forward<T>(t.value));
 }
 
 template <class T, class F>
-void for_each_field(detail::view_impl<T> t, F&& func) {
+void for_each_field(detail::view_impl<T>& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(detail::view_impl<T>&& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(const detail::view_impl<T>& t, F&& func) {
+    boost::pfr::for_each_field(std::forward<T>(t.value), func);
+}
+
+template <class T, class F>
+void for_each_field(const detail::view_impl<T>&& t, F&& func) {
     boost::pfr::for_each_field(std::forward<T>(t.value), func);
 }
 
