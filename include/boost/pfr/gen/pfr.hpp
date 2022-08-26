@@ -5231,7 +5231,7 @@ struct is_reference<detail::view_impl<T>> : std::is_reference<T> {};
 
 template <class T>
 auto view(T&& value) noexcept {
-    return detail::view_impl<T>{{}, std::forward<T>(value)};
+    return detail::view_impl<T>{std::forward<T>(value)};
 }
 
 template<std::size_t I, class T>
