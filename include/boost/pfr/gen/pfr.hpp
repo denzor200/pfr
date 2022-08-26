@@ -5141,6 +5141,42 @@ struct is_reflectable<T, WHAT_FOR> : std::integral_constant<bool, true> {       
 };                                                                                                                                          \
 }}
 
+/////////////////////////////////////////////////////////
+// detail/view.hpp
+namespace boost { namespace pfr {
+namespace detail {
+
+template<class T, class Enable = void>
+struct view_impl_base;
+
+template<class T>
+struct view_impl_base<T, std::enable_if_t<std::is_reference<T>::value>> {
+    T value;
+    static_assert(!std::is_rvalue_reference<T>::value, "");
+};
+
+template<class T>
+struct view_impl_base<T, std::enable_if_t<!std::is_reference<T>::value>> {
+    T value;
+
+    view_impl_base() = default;
+
+    template<class U>
+    explicit view_impl_base(U&& value, std::enable_if_t<std::is_rvalue_reference<U&&>::value
+                                        && std::is_constructible<T, U&&>::value>* = nullptr)
+        : value(std::move(value))
+    {
+    }
+
+    view_impl_base( const view_impl_base& ) = delete;
+    view_impl_base& operator=( const view_impl_base& ) = delete;
+
+    view_impl_base( view_impl_base&& ) = default;
+    view_impl_base& operator=( view_impl_base&& ) = default;
+};
+
+}  // detail
+}} // boost::pfr
 
 /////////////////////////////////////////////////////////
 // view.hpp
@@ -5148,59 +5184,39 @@ namespace boost { namespace pfr {
 
 namespace detail {
 
-template<typename T, typename Enable = void>
-struct view_impl;
+template<class T>
+struct view_impl : view_impl_base<T>, guaranteed_nonreflectable {
+    template<typename U>
+    explicit view_impl(U&& value, std::enable_if_t<std::is_constructible<T, U&&>::value>* = nullptr)
+        : view_impl_base<T>{std::forward<U>(value)}
+    {
+    }
 
-template<typename T>
-struct view_impl<T, std::enable_if_t<std::is_reference<T>::value>> : guaranteed_nonreflectable {
-    T value;
-
-    static_assert(!std::is_rvalue_reference<T>::value, "");
-
+    // TODO: enable it
+#if 0
     template<typename U, std::enable_if_t<std::is_reference<U>::value
-                                       && detail::is_same_without_cvref<T, U>::value, bool> = true>
+                                       && is_same_without_cvref<T, U>::value, bool> = true>
     constexpr operator view_impl<U>() const & {
-        return view_impl<U>{value};
+        return view_impl<U>{view_impl_base<T>::value};
     }
-};
-
-template<typename T>
-struct view_impl<T, std::enable_if_t<!std::is_reference<T>::value>> : guaranteed_nonreflectable {
-    T value;
-
-    view_impl() = default;
-
-    template<typename U>
-    explicit view_impl(U&& value, std::enable_if_t<std::is_rvalue_reference<U&&>::value
-                                        && std::is_constructible<T, U&&>::value>* = nullptr)
-        : value(std::move(value))
-    {
-    }
-
-    template<typename U>
-    view_impl(view_impl<U>&& value, std::enable_if_t<std::is_rvalue_reference<U&&>::value
-                                  && std::is_constructible<T, U&&>::value>* = nullptr)
-        : value(std::move(value.value))
-    {
-    }
-
-    view_impl( const view_impl& ) = delete;
-    view_impl& operator=( const view_impl& ) = delete;
-
-    view_impl( view_impl&& ) = default;
-    view_impl& operator=( view_impl&& ) = default;
+#endif
 
     template<typename U, std::enable_if_t<std::is_reference<U>::value
-                      && detail::is_same_without_cvref<T, U>::value, bool> = true>
+                      && is_same_without_cvref<T, U>::value, bool> = true>
     constexpr operator view_impl<U>() & {
-        //std::cout << "4" << std::endl;
-        //std::cout << boost::typeindex::type_id_with_cvr<T>() << std::endl;
-        return view_impl<U>{value};
+        return view_impl<U>{view_impl_base<T>::value};
+    }
+
+    template<typename U, std::enable_if_t<!std::is_reference<U>::value
+                      && is_same_without_cvref<T, U>::value, bool> = true>
+    constexpr operator view_impl<U>() && {
+        return view_impl<U>{std::move(view_impl_base<T>::value)};
     }
 
     constexpr operator T() && {
-        return std::move(value);
+        return std::move(view_impl_base<T>::value);
     }
+    
 };
 
 } // namespace detail
