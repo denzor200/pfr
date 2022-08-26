@@ -5221,6 +5221,8 @@ struct view_impl : view_impl_base<T>, guaranteed_nonreflectable {
 
 } // namespace detail
 
+// TODO: make test for `decltype(std::declval<boost::pfr::detail::view_impl<T>>().value) == decltype(boost::pfr::view(std::declval<T>()).value) == T`
+
 template<class T>
 struct is_view<detail::view_impl<T>> : std::integral_constant<bool, true> {
 };
@@ -5233,6 +5235,9 @@ template <class T>
 auto view(T&& value) noexcept {
     return detail::view_impl<T>{std::forward<T>(value)};
 }
+
+template<class T>
+using view_t = decltype(boost::pfr::view(std::declval<T>()));
 
 template<std::size_t I, class T>
 constexpr decltype(auto) get( detail::view_impl<T>& t ) noexcept {
