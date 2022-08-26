@@ -5159,41 +5159,8 @@ namespace boost { namespace pfr {
 namespace detail {
 
 template<class T>
-struct view_impl : view_impl_base<T>, guaranteed_nonreflectable {
-    
-    view_impl() = default;
-    
-    template<typename U>
-    explicit view_impl(U&& value, std::enable_if_t<std::is_constructible<T, U&&>::value>* = nullptr)
-        : view_impl_base<T>{std::forward<U>(value)}
-    {
-    }
-
-    // TODO: enable it
-#if 0
-    template<typename U, std::enable_if_t<std::is_reference<U>::value
-                                       && is_same_without_cvref<T, U>::value, bool> = true>
-    constexpr operator view_impl<U>() const & {
-        return view_impl<U>{view_impl_base<T>::value};
-    }
-#endif
-
-    template<typename U, std::enable_if_t<std::is_reference<U>::value
-                      && is_same_without_cvref<T, U>::value, bool> = true>
-    constexpr operator view_impl<U>() & {
-        return view_impl<U>{view_impl_base<T>::value};
-    }
-
-    template<typename U, std::enable_if_t<!std::is_reference<U>::value
-                      && is_same_without_cvref<T, U>::value, bool> = true>
-    constexpr operator view_impl<U>() && {
-        return view_impl<U>{std::move(view_impl_base<T>::value)};
-    }
-
-    constexpr operator T() && {
-        return std::move(view_impl_base<T>::value);
-    }
-    
+struct view_impl : guaranteed_nonreflectable {
+    T value;
 };
 
 } // namespace detail
@@ -5210,7 +5177,7 @@ struct is_reference<detail::view_impl<T>> : std::is_reference<T> {};
 
 template <class T>
 auto view(T&& value) noexcept {
-    return detail::view_impl<T>{std::forward<T>(value)};
+    return detail::view_impl<T>{{}, std::forward<T>(value)};
 }
 
 template<class T>
