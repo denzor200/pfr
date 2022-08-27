@@ -1490,6 +1490,9 @@ constexpr T unsafe_declval() noexcept {
 
 namespace boost { namespace pfr { namespace detail {
 
+///////////////////// Tag that can be used to say that this type is not reflectable(for internal use only)
+struct guaranteed_nonreflectable {};
+
 ///////////////////// Structure that can be converted to reference to anything
 struct ubiq_lref_constructor {
     std::size_t ignore;
@@ -1726,6 +1729,11 @@ constexpr std::size_t fields_count() noexcept {
     static_assert(
         !std::is_reference<type>::value,
         "====================> Boost.PFR: Attempt to get fields count on a reference. This is not allowed because that could hide an issue and different library users expect different behavior in that case."
+    );
+
+    static_assert(
+        !std::is_base_of<guaranteed_nonreflectable, type>::value,
+        "====================> Boost.PFR: Type is non-reflectable"
     );
 
 #if !BOOST_PFR_HAS_GUARANTEED_COPY_ELISION
@@ -3397,7 +3405,8 @@ namespace boost { namespace pfr {
 ///     std::array<int, boost::pfr::tuple_size<my_structure>::value > a;
 /// \endcode
 template <class T>
-using tuple_size = detail::size_t_< boost::pfr::detail::fields_count<T>() >;
+struct tuple_size : detail::size_t_< boost::pfr::detail::fields_count<T>() > {};
+
 
 
 /// `tuple_size_v` is a template variable that contains fields count in a T and
@@ -3507,17 +3516,7 @@ constexpr auto get(T&& val, std::enable_if_t< std::is_rvalue_reference<T&&>::val
 ///     std::vector< boost::pfr::tuple_element<0, my_structure>::type > v;
 /// \endcode
 template <std::size_t I, class T>
-using tuple_element = detail::sequence_tuple::tuple_element<I, decltype( ::boost::pfr::detail::tie_as_tuple(std::declval<T&>()) ) >;
-
-
-/// \brief Type of a field with index `I` in \aggregate `T`.
-///
-/// \b Example:
-/// \code
-///     std::vector< boost::pfr::tuple_element_t<0, my_structure> > v;
-/// \endcode
-template <std::size_t I, class T>
-using tuple_element_t = typename tuple_element<I, T>::type;
+struct tuple_element : detail::sequence_tuple::tuple_element<I, decltype( ::boost::pfr::detail::tie_as_tuple(std::declval<T&>()) ) > {};
 
 
 /// \brief Creates a `std::tuple` from fields of an \aggregate `val`.
@@ -3649,6 +3648,16 @@ template <typename... Elements>
 constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Elements&... args) noexcept {
     return detail::tie_from_structure_tuple<Elements...>(args...);
 }
+
+
+/// \brief Type of a field with index `I` in \aggregate `T`.
+///
+/// \b Example:
+/// \code
+///     std::vector< boost::pfr::tuple_element_t<0, my_structure> > v;
+/// \endcode
+template <std::size_t I, class T>
+using tuple_element_t = typename tuple_element<I, T>::type;
 
 }} // namespace boost::pfr
 
