@@ -11,7 +11,7 @@ import sys
 import string
 
 # Skipping some letters that may produce keywords or are hard to read, or shadow template parameters
-ascii_letters = string.ascii_letters.replace("o", "").replace("O", "").replace("i", "").replace("I", "").replace("T", "")
+ascii_letters = string.ascii_letters.replace("o", "").replace("O", "").replace("i", "").replace("I", "").replace("T", "").replace("C", "").replace("V", "")
 
 PROLOGUE = """// Copyright (c) 2016-2020 Antony Polukhin
 //
@@ -39,33 +39,56 @@ PROLOGUE = """// Copyright (c) 2016-2020 Antony Polukhin
 namespace boost { namespace pfr { namespace detail {
 
 template <class... Args>
-constexpr auto make_tuple_of_references(Args&&... args) noexcept {
-  return sequence_tuple::tuple<Args&...>{ args... };
+constexpr auto make_tuple_of_const_references(Args&&... args) noexcept {
+  return sequence_tuple::tuple<const Args&...>{ args... };
 }
 
-template <class T>
-constexpr auto tie_as_tuple(T& /*val*/, size_t_<0>) noexcept {
+template <class... Args>
+constexpr auto make_tuple_of_volatile_references(Args&&... args) noexcept {
+  return sequence_tuple::tuple<volatile Args&...>{ args... };
+}
+
+template <class... Args>
+constexpr auto make_tuple_of_cv_references(Args&&... args) noexcept {
+  return sequence_tuple::tuple<const volatile Args&...>{ args... };
+}
+
+template <bool C, bool V, class... Args>
+constexpr auto make_tuple_of_references(Args&&... args) noexcept {
+  if constexpr (C && V) {
+    return make_tuple_of_cv_references(std::forward<Args>(args)...);
+  } else if constexpr (C) {
+    return make_tuple_of_const_references(std::forward<Args>(args)...);
+  } else if constexpr (V) {
+    return make_tuple_of_volatile_references(std::forward<Args>(args)...);
+  } else {
+    return sequence_tuple::tuple<Args&...>{ args... };
+  }
+}
+
+template <class T, class C, class V>
+constexpr auto tie_as_tuple(T& /*val*/, size_t_<0>, C, V) noexcept {
   return sequence_tuple::tuple<>{};
 }
 
-template <class T>
-constexpr auto tie_as_tuple(T& val, size_t_<1>, std::enable_if_t<std::is_class< std::remove_cv_t<T> >::value>* = 0) noexcept {
+template <class T, class C, class V>
+constexpr auto tie_as_tuple(T& val, size_t_<1>, C, V, std::enable_if_t<std::is_class<T>::value>* = 0) noexcept {
   auto& [a] = val; // ====================> Boost.PFR: User-provided type is not a SimpleAggregate.
-  return ::boost::pfr::detail::make_tuple_of_references(a);
+  return ::boost::pfr::detail::make_tuple_of_references<C::value, V::value>(a);
 }
 
 
-template <class T>
-constexpr auto tie_as_tuple(T& val, size_t_<1>, std::enable_if_t<!std::is_class< std::remove_cv_t<T> >::value>* = 0) noexcept {
-  return ::boost::pfr::detail::make_tuple_of_references( val );
+template <class T, class C, class V>
+constexpr auto tie_as_tuple(T& val, size_t_<1>, C, V, std::enable_if_t<!std::is_class<T>::value>* = 0) noexcept {
+  return ::boost::pfr::detail::make_tuple_of_references<C::value, V::value>( val );
 }
 
 """
 
 ############################################################################################################################
 EPILOGUE = """
-template <class T, std::size_t I>
-constexpr void tie_as_tuple(T& /*val*/, size_t_<I>) noexcept {
+template <class T, class C, class V, std::size_t I>
+constexpr void tie_as_tuple(T& /*val*/, size_t_<I>, C, V) noexcept {
   static_assert(sizeof(T) && false,
                 "====================> Boost.PFR: Too many fields in a structure T. Regenerate include/boost/pfr/detail/core17_generated.hpp file for appropriate count of fields. For example: `python ./misc/generate_cpp17.py 300 > include/boost/pfr/detail/core17_generated.hpp`");
 }
@@ -92,17 +115,17 @@ for i in range(1, funcs_count):
         indexes += ascii_letters[i // max_args_on_a_line - 1]
     indexes += ascii_letters[i % max_args_on_a_line]
 
-    print("template <class T>")
-    print("constexpr auto tie_as_tuple(T& val, size_t_<" + str(i + 1) + ">) noexcept {")
+    print("template <class T, class C, class V>")
+    print("constexpr auto tie_as_tuple(T& val, size_t_<" + str(i + 1) + ">, C, V) noexcept {")
     if i < max_args_on_a_line:
         print("  auto& [" + indexes.strip() + "] = val; // ====================> Boost.PFR: User-provided type is not a SimpleAggregate.")
-        print("  return ::boost::pfr::detail::make_tuple_of_references(" + indexes.strip() + ");")
+        print("  return ::boost::pfr::detail::make_tuple_of_references<C::value, V::value>(" + indexes.strip() + ");")
     else:
         print("  auto& [")
         print(indexes)
         print("  ] = val; // ====================> Boost.PFR: User-provided type is not a SimpleAggregate.")
         print("")
-        print("  return ::boost::pfr::detail::make_tuple_of_references(")
+        print("  return ::boost::pfr::detail::make_tuple_of_references<C::value, V::value>(")
         print(indexes)
         print("  );")
 
