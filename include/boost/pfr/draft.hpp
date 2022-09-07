@@ -307,17 +307,17 @@ struct tuple_size<detail::view_impl<T>>
 
 namespace boost { namespace pfr {
 
-template<class T, class... U, std::enable_if_t<!boost::pfr::is_view<detail::remove_cvref_t<T>>::value, bool> = true>
+// TODO: need failed tests for passing reference to structure and reference to view into make_reflectable
+template<class T, class... U, std::enable_if_t<!boost::pfr::is_view<T>::value>* = nullptr>
 T make_reflectable(U&&... u) {
     static_assert(!boost::pfr::is_reference<T>::value, "====================> Boost.PFR: Can't return a reference to anything");
     return T{std::forward<U>(u)...};
 }
 
-template<class T, class... U, std::enable_if_t<boost::pfr::is_view<detail::remove_cvref_t<T>>::value, bool> = true>
-detail::remove_cvref_t<T> make_reflectable(U&&... u) {
-    using clean_t = detail::remove_cvref_t<T>;
+template<class T, class... U, std::enable_if_t<boost::pfr::is_view<T>::value>* = nullptr>
+T make_reflectable(U&&... u) {
     using underlying_type = detail::remove_cvref_t<decltype(std::declval<T>().value)>;
-    static_assert(!boost::pfr::is_reference<clean_t>::value, "====================> Boost.PFR: Can't return a reference to anything");
+    static_assert(!boost::pfr::is_reference<T>::value, "====================> Boost.PFR: Can't return a reference to anything");
     return boost::pfr::view(underlying_type{std::forward<U>(u)...});
 }
 
