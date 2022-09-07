@@ -5328,6 +5328,21 @@ detail::remove_cvref_t<T> make_reflectable(U&&... u) {
     return boost::pfr::view(underlying_type{std::forward<U>(u)...});
 }
 
+namespace detail {
+template<class T, class F, std::size_t... I>
+T make_reflectable_impl(F&& make_element_func, std::index_sequence<I...>) {
+    return boost::pfr::make_reflectable<T>(make_element_func(size_t_<I>{})...);
+}
+} // namespace detail
+
+template<class T, class F>
+T make_reflectable(F&& make_element_func) {
+    constexpr std::size_t fields_count
+                = boost::pfr::tuple_size_v<std::remove_reference_t<T>>;
+    return detail::make_reflectable_impl<T>(std::forward<F>(make_element_func),
+                                            std::make_index_sequence<fields_count>());
+}
+    
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_DRAFT_HPP
