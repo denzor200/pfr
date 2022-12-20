@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,24 +9,15 @@
 /// \file boost/pfr.hpp
 /// Includes all the Boost.PFR headers
 
-// #include <boost/pfr/core.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// #include <boost/pfr/config.hpp>
+// Copyright (c) 2016-2022 Antony Polukhin
+// Copyright (c) 2022 Denis Mikhailov
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef BOOST_PFR_CORE_HPP
-#define BOOST_PFR_CORE_HPP
-
-
-// #include <boost/pfr/detail/config.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-
-#ifndef BOOST_PFR_DETAIL_CONFIG_HPP
-#define BOOST_PFR_DETAIL_CONFIG_HPP
+#ifndef BOOST_PFR_CONFIG_HPP
+#define BOOST_PFR_CONFIG_HPP
 
 
 #include <type_traits> // to get non standard platform macro definitions (__GLIBCXX__ for example)
@@ -37,12 +28,16 @@
 //  * MSVC++ 14.0 _MSC_VER == 1900 (Visual Studio 2015)
 //  * MSVC++ 12.0 _MSC_VER == 1800 (Visual Studio 2013)
 
+#ifdef BOOST_PFR_NOT_SUPPORTED
+#   error Please, don't set BOOST_PFR_NOT_SUPPORTED value manually, use '-DBOOST_PFR_ENABLED=0' instead of it
+#endif
+
 #if defined(_MSC_VER)
 #   if !defined(_MSVC_LANG) || _MSC_VER <= 1900
-#       error Boost.PFR library requires more modern MSVC compiler.
+#       define BOOST_PFR_NOT_SUPPORTED 1
 #   endif
 #elif __cplusplus < 201402L
-#   error Boost.PFR library requires at least C++14.
+#   define BOOST_PFR_NOT_SUPPORTED 1
 #endif
 
 #ifndef BOOST_PFR_USE_LOOPHOLE
@@ -75,7 +70,7 @@
 
 #if (!BOOST_PFR_USE_CPP17 && !BOOST_PFR_USE_LOOPHOLE)
 #   if (defined(_MSC_VER) && _MSC_VER < 1916) ///< in Visual Studio 2017 v15.9 PFR library with classic engine normally works
-#      error Boost.PFR requires /std:c++latest or /std:c++17 flags on your compiler.
+#      define BOOST_PFR_NOT_SUPPORTED 1
 #   endif
 #endif
 
@@ -99,6 +94,15 @@
 #   endif
 #endif
 
+#ifndef BOOST_PFR_ENABLE_IMPLICIT_REFLECTION
+#   if  defined(__cpp_lib_is_aggregate)
+#       define BOOST_PFR_ENABLE_IMPLICIT_REFLECTION 1
+#   else
+// There is no way to detect potential ability to be reflectable without std::is_aggregare
+#       define BOOST_PFR_ENABLE_IMPLICIT_REFLECTION 0
+#   endif
+#endif
+
 #if defined(__has_cpp_attribute)
 #   if __has_cpp_attribute(maybe_unused)
 #       define BOOST_PFR_MAYBE_UNUSED [[maybe_unused]]
@@ -109,12 +113,60 @@
 #   define BOOST_PFR_MAYBE_UNUSED
 #endif
 
+#ifndef BOOST_PFR_ENABLED
+#   ifdef BOOST_PFR_NOT_SUPPORTED
+#       define BOOST_PFR_ENABLED 0
+#   else
+#       define BOOST_PFR_ENABLED 1
+#   endif
+#endif
+
+#undef BOOST_PFR_NOT_SUPPORTED
+
+#endif // BOOST_PFR_CONFIG_HPP
+
+// #include <boost/pfr/core.hpp>
+// Copyright (c) 2016-2022 Antony Polukhin
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_CORE_HPP
+#define BOOST_PFR_CORE_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+// Copyright (c) 2016-2022 Antony Polukhin
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_CONFIG_HPP
+#define BOOST_PFR_DETAIL_CONFIG_HPP
+
+
+// #include <boost/pfr/config.hpp>
+
+
+#if !BOOST_PFR_ENABLED
+
+#error Boost.PFR library is not supported in your environment.             \
+       Try one of the possible solutions:                                  \
+       1. try to take away an '-DBOOST_PFR_ENABLED=0', if it exists        \
+       2. enable C++14;                                                    \
+       3. enable C++17;                                                    \
+       4. update your compiler;                                            \
+       or disable this error by '-DBOOST_PFR_ENABLED=1' if you really know what are you doing.
+
+#endif // !BOOST_PFR_ENABLED
 
 #endif // BOOST_PFR_DETAIL_CONFIG_HPP
 
 
+
 // #include <boost/pfr/detail/core.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -132,7 +184,7 @@
 // The whole PFR library is build on top of those two functions.
 #if BOOST_PFR_USE_CPP17
 // #   include <boost/pfr/detail/core17.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -142,7 +194,7 @@
 #define BOOST_PFR_DETAIL_CORE17_HPP
 
 // #include <boost/pfr/detail/core17_generated.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -164,7 +216,7 @@
 #endif
 
 // #include <boost/pfr/detail/sequence_tuple.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -177,7 +229,7 @@
 
 // #include <boost/pfr/detail/make_integer_sequence.hpp>
 // Copyright (c) 2018 Sergei Fedorov
-// Copyright (c) 2019-2021 Antony Polukhin
+// Copyright (c) 2019-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -309,26 +361,31 @@ struct tuple_base<std::index_sequence<> > {
 
 template <std::size_t N, class T>
 constexpr T& get_impl(base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return t.value;
 }
 
 template <std::size_t N, class T>
 constexpr const T& get_impl(const base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return t.value;
 }
 
 template <std::size_t N, class T>
 constexpr volatile T& get_impl(volatile base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return t.value;
 }
 
 template <std::size_t N, class T>
 constexpr const volatile T& get_impl(const volatile base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return t.value;
 }
 
 template <std::size_t N, class T>
 constexpr T&& get_impl(base_from_member<N, T>&& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return std::forward<T>(t.value);
 }
 
@@ -386,7 +443,7 @@ using tuple_element = std::remove_reference< decltype(
 #endif // BOOST_PFR_CORE_HPP
 
 // #include <boost/pfr/detail/size_t_.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1421,7 +1478,7 @@ constexpr void tie_as_tuple(T& /*val*/, size_t_<I>) noexcept {
 
 
 // #include <boost/pfr/detail/fields_count.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1437,7 +1494,7 @@ constexpr void tie_as_tuple(T& /*val*/, size_t_<I>) noexcept {
 // #include <boost/pfr/detail/size_t_.hpp>
 
 // #include <boost/pfr/detail/unsafe_declval.hpp>
-// Copyright (c) 2019-2021 Antony Polukhin.
+// Copyright (c) 2019-2022 Antony Polukhin.
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1794,7 +1851,7 @@ constexpr std::size_t fields_count() noexcept {
 #endif // BOOST_PFR_DETAIL_FIELDS_COUNT_HPP
 
 // #include <boost/pfr/detail/for_each_field_impl.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1811,7 +1868,7 @@ constexpr std::size_t fields_count() noexcept {
 // #include <boost/pfr/detail/sequence_tuple.hpp>
 
 // #include <boost/pfr/detail/rvalue_t.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1863,9 +1920,10 @@ void for_each_field_impl_apply(T&& v, F&& f, I /*i*/, int) {
     std::forward<F>(f)(std::forward<T>(v));
 }
 
+#if !defined(__cpp_fold_expressions) || __cpp_fold_expressions < 201603
 template <class T, class F, std::size_t... I>
 void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
-     const int v[] = {(
+     const int v[] = {0, (
          detail::for_each_field_impl_apply(sequence_tuple::get<I>(t), std::forward<F>(f), size_t_<I>{}, 1L),
          0
      )...};
@@ -1875,12 +1933,23 @@ void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type
 
 template <class T, class F, std::size_t... I>
 void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
-     const int v[] = {(
+     const int v[] = {0, (
          detail::for_each_field_impl_apply(sequence_tuple::get<I>(std::move(t)), std::forward<F>(f), size_t_<I>{}, 1L),
          0
      )...};
      (void)v;
 }
+#else
+template <class T, class F, std::size_t... I>
+void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
+     (detail::for_each_field_impl_apply(sequence_tuple::get<I>(t), std::forward<F>(f), size_t_<I>{}, 1L), ...);
+}
+
+template <class T, class F, std::size_t... I>
+void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
+     (detail::for_each_field_impl_apply(sequence_tuple::get<I>(std::move(t)), std::forward<F>(f), size_t_<I>{}, 1L), ...);
+}
+#endif
 
 }}} // namespace boost::pfr::detail
 
@@ -1951,7 +2020,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 #elif BOOST_PFR_USE_LOOPHOLE
 // #   include <boost/pfr/detail/core14_loophole.hpp>
 // Copyright (c) 2017-2018 Alexandr Poltavsky, Antony Polukhin.
-// Copyright (c) 2019-2021 Antony Polukhin.
+// Copyright (c) 2019-2022 Antony Polukhin.
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -1980,7 +2049,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 #include <utility>
 
 // #include <boost/pfr/detail/cast_to_layout_compatible.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -2060,7 +2129,7 @@ To&& cast_to_layout_compatible(rvalue_t<From> val) noexcept = delete;
  // still needed for enums
 // #include <boost/pfr/detail/offset_based_getter.hpp>
 // Copyright (c) 2017-2018 Chris Beck
-// Copyright (c) 2019-2021 Antony Polukhin
+// Copyright (c) 2019-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -2074,6 +2143,7 @@ To&& cast_to_layout_compatible(rvalue_t<From> val) noexcept = delete;
 
 #include <type_traits>
 #include <utility>
+#include <memory>  // std::addressof
 // #include <boost/pfr/detail/sequence_tuple.hpp>
 
 // #include <boost/pfr/detail/rvalue_t.hpp>
@@ -2207,7 +2277,7 @@ public:
 // #include <boost/pfr/detail/fields_count.hpp>
 
 // #include <boost/pfr/detail/make_flat_tuple_of_references.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -2483,7 +2553,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 
 #else
 // #   include <boost/pfr/detail/core14_classic.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -2509,7 +2579,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 // #include <boost/pfr/detail/make_integer_sequence.hpp>
 
 // #include <boost/pfr/detail/size_array.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3173,13 +3243,20 @@ struct ubiq_constructor_constexpr_copy {
 /////////////////////
 
 template <class T, std::size_t... I>
-struct is_constexpr_aggregate_initializable { // TODO: try to fix it
-    template <T = T{ ubiq_constructor_constexpr_copy{I}... } >
+struct is_constexpr_aggregate_initializable {
+    template<class T2, std::size_t... I2>
+    static constexpr void* constexpr_aggregate_initializer() noexcept {
+        T2 tmp{ ubiq_constructor_constexpr_copy{I2}... };
+        (void)tmp;
+        return nullptr;
+    }
+
+    template <void* = constexpr_aggregate_initializer<T, I...>() >
     static std::true_type test(long) noexcept;
 
     static std::false_type test(...) noexcept;
 
-    static constexpr decltype( test(0) ) value{};
+    static constexpr bool value = decltype(test(0)){};
 };
 
 
@@ -3250,16 +3327,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
         !std::is_union<T>::value,
         "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
     );
-
-    /// Compile time error at this point means that you have called `for_each_field` or some other non-flat function or operator for a
-    /// type that is not constexpr aggregate initializable.
-    ///
-    /// Make sure that all the fields of your type have constexpr default construtors and trivial destructors.
-    /// Or compile in C++17 mode.
-    constexpr T tmp{ ubiq_constructor_constexpr_copy{I}... };
-    (void)tmp;
-
-    //static_assert(is_constexpr_aggregate_initializable<T, I...>::value, "====================> Boost.PFR: T must be a constexpr initializable type");
+    static_assert(is_constexpr_aggregate_initializable<T, I...>::value, "====================> Boost.PFR: T must be a constexpr initializable type");
 
     constexpr bool is_flat_refelectable_val = detail::is_flat_refelectable<T>( std::index_sequence<I...>{} );
     detail::for_each_field_dispatcher_1(
@@ -3289,7 +3357,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 // #include <boost/pfr/detail/sequence_tuple.hpp>
 
 // #include <boost/pfr/detail/stdtuple.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3344,7 +3412,7 @@ constexpr auto make_conststdtiedtuple_from_tietuple(const T& t, std::index_seque
 
 // #include <boost/pfr/detail/tie_from_structure_tuple.hpp>
 // Copyright (c) 2018 Adam Butcher, Antony Polukhin
-// Copyright (c) 2019-2021 Antony Polukhin
+// Copyright (c) 2019-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3362,7 +3430,7 @@ constexpr auto make_conststdtiedtuple_from_tietuple(const T& t, std::index_seque
 // #include <boost/pfr/detail/stdtuple.hpp>
 
 // #include <boost/pfr/tuple_size.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3655,7 +3723,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 #endif // BOOST_PFR_CORE_HPP
 
 // #include <boost/pfr/functions_for.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3668,7 +3736,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 
 
 // #include <boost/pfr/ops_fields.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -3683,7 +3751,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 // #include <boost/pfr/core.hpp>
 
 // #include <boost/pfr/detail/functional.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4041,7 +4109,7 @@ namespace boost { namespace pfr {
 #endif // BOOST_PFR_OPS_HPP
 
 // #include <boost/pfr/io_fields.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4063,7 +4131,7 @@ namespace boost { namespace pfr {
 // #include <boost/pfr/detail/sequence_tuple.hpp>
 
 // #include <boost/pfr/detail/io.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4381,7 +4449,7 @@ auto io_fields(T&& value) noexcept {
 
 
 // #include <boost/pfr/functors.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4394,7 +4462,7 @@ auto io_fields(T&& value) noexcept {
 
 
 // #include <boost/pfr/ops.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4407,7 +4475,7 @@ auto io_fields(T&& value) noexcept {
 
 
 // #include <boost/pfr/detail/detectors.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4868,7 +4936,7 @@ template <class T> struct hash {
 #endif // BOOST_PFR_FUNCTORS_HPP
 
 // #include <boost/pfr/io.hpp>
-// Copyright (c) 2016-2021 Antony Polukhin
+// Copyright (c) 2016-2022 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -4992,6 +5060,137 @@ auto io(T&& value) noexcept {
 // #include <boost/pfr/ops_fields.hpp>
 
 // #include <boost/pfr/tuple_size.hpp>
+
+// #include <boost/pfr/traits_fwd.hpp>
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_TRAITS_FWD_HPP
+#define BOOST_PFR_DETAIL_TRAITS_FWD_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+namespace boost { namespace pfr {
+
+template<class T, class WhatFor>
+struct is_reflectable;
+
+}} // namespace boost::pfr
+
+#endif // BOOST_PFR_DETAIL_TRAITS_FWD_HPP
+
+
+
+// #include <boost/pfr/traits.hpp>
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_TRAITS_HPP
+#define BOOST_PFR_TRAITS_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// #include <boost/pfr/detail/possible_reflectable.hpp>
+// Copyright (c) 2022 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_POSSIBLE_REFLECTABLE_HPP
+#define BOOST_PFR_DETAIL_POSSIBLE_REFLECTABLE_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+// #include <boost/pfr/traits_fwd.hpp>
+
+
+#include <type_traits> // for std::is_aggregate
+
+namespace boost { namespace pfr { namespace detail {
+
+///////////////////// Returns false when the type exactly wasn't be reflectable
+template <class T, class WhatFor>
+constexpr decltype(is_reflectable<T, WhatFor>::value) possible_reflectable(long) noexcept {
+    return is_reflectable<T, WhatFor>::value;
+}
+
+template <class T, class WhatFor>
+constexpr bool possible_reflectable(int) noexcept {
+#   if  defined(__cpp_lib_is_aggregate)
+    using type = std::remove_cv_t<T>;
+    return std::is_aggregate<type>();
+#   else
+    return true;
+#   endif
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_POSSIBLE_REFLECTABLE_HPP
+
+
+
+#include <type_traits>
+
+/// \file boost/pfr/traits.hpp
+/// Contains traits \forcedlink{is_reflectable} and \forcedlink{is_implicitly_reflectable} for detecting an ability to reflect type.
+///
+/// \b Synopsis:
+
+namespace boost { namespace pfr {
+
+/// Has a static const member variable `value` when it known that type T can or can't be reflected using Boost.PFR; otherwise, there is no member variable.
+/// Every user may(and in some difficult cases - should) specialize is_reflectable on his own.
+///
+/// \b Example:
+/// \code
+///     namespace boost { namespace pfr {
+///         template<class All> struct is_reflectable<A, All> : std::false_type {};       // 'A' won't be interpreted as reflectable everywhere
+///         template<> struct is_reflectable<B, boost_fusion_tag> : std::false_type {};   // 'B' won't be interpreted as reflectable in only Boost Fusion
+///     }}
+/// \endcode
+/// \note is_reflectable affects is_implicitly_reflectable, the decision made by is_reflectable has more priority than is_implicitly_reflectable,
+///       because is_reflectable is more sharp than is_implicitly_reflectable
+///
+template<class T, class WhatFor>
+struct is_reflectable { /*  do not has 'value' because value is unknown */ };
+
+// these specs can't be inherited from 'std::integral_constant< bool, boost::pfr::is_reflectable<T, WhatFor>::value >',
+// because it will break the sfinae-friendliness
+template<class T, class WhatFor>
+struct is_reflectable<const T, WhatFor> : boost::pfr::is_reflectable<T, WhatFor> {};
+
+template<class T, class WhatFor>
+struct is_reflectable<volatile T, WhatFor> : boost::pfr::is_reflectable<T, WhatFor> {};
+
+template<class T, class WhatFor>
+struct is_reflectable<const volatile T, WhatFor> : boost::pfr::is_reflectable<T, WhatFor> {};
+
+#if BOOST_PFR_ENABLE_IMPLICIT_REFLECTION
+/// Checks the input type for the potential to be reflected.
+/// Specialize is_reflectable if you are disagree with is_implicitly_reflectable's default decision.
+template<class T, class WhatFor>
+using is_implicitly_reflectable = std::integral_constant< bool, boost::pfr::detail::possible_reflectable<T, WhatFor>(1L) >;
+
+/// Checks the input type for the potential to be reflected.
+/// Specialize is_reflectable if you are disagree with is_implicitly_reflectable_v's default decision.
+template<class T, class WhatFor>
+constexpr bool is_implicitly_reflectable_v = is_implicitly_reflectable<T, WhatFor>::value;
+#endif
+
+}} // namespace boost::pfr
+
+#endif // BOOST_PFR_TRAITS_HPP
+
 
 
 #endif // BOOST_PFR_HPP
