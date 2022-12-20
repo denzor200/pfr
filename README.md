@@ -2,16 +2,16 @@
 
 This is a C++14 library for very basic reflection that gives you access to structure elements by index and provides other `std::tuple` like methods for user defined types without any macro or boilerplate code.
 
-Boost.PFR is a part of the [Boost C++ Libraries](https://github.com/boostorg). However, Boost.PFR is a header only library that does not depend on Boost. You can just copy the content of the "include" folder from the github into your project, and the library will work fine.
+[Boost.PFR](https://boost.org/libs/pfr) is a part of the [Boost C++ Libraries](https://github.com/boostorg). However, Boost.PFR is a header only library that does not depend on Boost. You can just copy the content of the "include" folder from the github into your project, and the library will work fine.
 
-For a version of the library without `boost::` namespace see https://github.com/apolukhin/pfr_non_boost
+For a version of the library without `boost::` namespace see [PFR](https://github.com/apolukhin/pfr_non_boost).
 
 ### Test results
 
 Branches        | Build         | Tests coverage | More info
 ----------------|-------------- | -------------- |-----------
-Develop:        | [![CI](https://github.com/boostorg/pfr/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/pfr/actions/workflows/ci.yml) [![Build Status](https://travis-ci.org/apolukhin/magic_get.svg?branch=develop)](https://travis-ci.org/apolukhin/magic_get) [![Build status](https://ci.appveyor.com/api/projects/status/3tled9gd24k9paia/branch/develop?svg=true)](https://ci.appveyor.com/project/apolukhin/magic-get/branch/develop) | [![Coverage Status](https://coveralls.io/repos/github/apolukhin/magic_get/badge.png?branch=develop)](https://coveralls.io/github/apolukhin/magic_get?branch=develop) | [details...](https://www.boost.org/development/tests/develop/developer/pfr.html)
-Master:         | [![CI](https://github.com/boostorg/pfr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/pfr/actions/workflows/ci.yml) [![Build Status](https://travis-ci.org/apolukhin/magic_get.svg?branch=master)](https://travis-ci.org/apolukhin/magic_get) [![Build status](https://ci.appveyor.com/api/projects/status/3tled9gd24k9paia/branch/master?svg=true)](https://ci.appveyor.com/project/apolukhin/magic-get/branch/master) | [![Coverage Status](https://coveralls.io/repos/github/apolukhin/magic_get/badge.png?branch=master)](https://coveralls.io/github/apolukhin/magic_get?branch=master) | [details...](https://www.boost.org/development/tests/master/developer/pfr.html)
+Develop:        | [![CI](https://github.com/boostorg/pfr/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/pfr/actions/workflows/ci.yml) [![Build status](https://ci.appveyor.com/api/projects/status/0mavmnkdmltcdmqa/branch/develop?svg=true)](https://ci.appveyor.com/project/apolukhin/pfr/branch/develop) | [![Coverage Status](https://coveralls.io/repos/github/apolukhin/magic_get/badge.png?branch=develop)](https://coveralls.io/github/apolukhin/magic_get?branch=develop) | [details...](https://www.boost.org/development/tests/develop/developer/pfr.html)
+Master:         | [![CI](https://github.com/boostorg/pfr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/pfr/actions/workflows/ci.yml) [![Build status](https://ci.appveyor.com/api/projects/status/0mavmnkdmltcdmqa/branch/master?svg=true)](https://ci.appveyor.com/project/apolukhin/pfr/branch/master) | [![Coverage Status](https://coveralls.io/repos/github/apolukhin/magic_get/badge.png?branch=master)](https://coveralls.io/github/apolukhin/magic_get?branch=master) | [details...](https://www.boost.org/development/tests/master/developer/pfr.html)
 
 [Latest developer documentation](https://www.boost.org/doc/libs/develop/doc/html/boost_pfr.html)
 
@@ -49,7 +49,7 @@ Edgar Allan Poe was born in 1809
 ### Motivating Example #1
 ```c++
 #include <iostream>
-#include "boost/pfr/precise.hpp"
+#include "boost/pfr.hpp"
 
 struct my_struct { // no ostream operator defined!
     int i;
@@ -74,7 +74,7 @@ my_struct has 3 fields: {100, H, 3.14159}
 
 ```c++
 #include <iostream>
-#include "boost/pfr/precise.hpp"
+#include "boost/pfr.hpp"
 
 struct my_struct { // no ostream operator defined!
     std::string s;
@@ -92,6 +92,58 @@ int main() {
 Outputs:
 ```
 my_struct has 2 fields: {"Das ist fantastisch!", 100}
+```
+
+### Motivating Example #3
+
+```c++
+#include <iostream>
+#include <string>
+
+#include <boost/config/warning_disable.hpp>
+#include <boost/spirit/home/x3.hpp>
+#include <boost/fusion/include/adapt_boost_pfr.hpp>
+
+#include "boost/pfr/io.hpp"
+
+namespace x3 = boost::spirit::x3;
+
+struct ast_employee { // No BOOST_FUSION_ADAPT_STRUCT defined
+    int age;
+    std::string forename;
+    std::string surname;
+    double salary;
+};
+
+auto const quoted_string = x3::lexeme['"' >> +(x3::ascii::char_ - '"') >> '"'];
+
+x3::rule<class employee, ast_employee> const employee = "employee";
+auto const employee_def =
+    x3::lit("employee")
+    >> '{'
+    >>  x3::int_ >> ','
+    >>  quoted_string >> ','
+    >>  quoted_string >> ','
+    >>  x3::double_
+    >>  '}'
+    ;
+BOOST_SPIRIT_DEFINE(employee);
+
+int main() {
+    std::string str = R"(employee{34, "Chip", "Douglas", 2500.00})";
+    ast_employee emp;
+    x3::phrase_parse(str.begin(),
+                     str.end(),
+                     employee,
+                     x3::ascii::space,
+                     emp);
+    std::cout << boost::pfr::io(emp) << std::endl;
+}
+
+```
+Outputs:
+```
+(34 Chip Douglas 2500)
 ```
 
 

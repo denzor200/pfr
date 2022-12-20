@@ -1,4 +1,4 @@
-#  Copyright (C) 2016-2021 Antony Polukhin.
+#  Copyright (C) 2016-2022 Antony Polukhin.
 #
 # Use, modification and distribution is subject to the Boost Software License,
 # Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
@@ -52,6 +52,8 @@ test-suite pfr_tests
     [ run print_config.cpp : : : <test-info>always_show_run_output : auto_engine_config ]
 
     [ run offset_based_getter.cpp ]
+
+    [ run can_be_as_fallback_in_the_fusion.cpp ]
 
     [ run test_tuple_sizes_on.cpp : : : <define>BOOST_PFR_RUN_TEST_ON=char : test_tuple_sizes_on_chars ]
     [ run test_tuple_sizes_on.cpp : : : <define>BOOST_PFR_RUN_TEST_ON=int : test_tuple_sizes_on_ints ]
