@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2022 Antony Polukhin
+// Copyright (c) 2016-2023 Antony Polukhin
 // Copyright (c) 2022 Denis Mikhailov
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -8,7 +8,14 @@
 #define BOOST_PFR_CONFIG_HPP
 #pragma once
 
+#if __cplusplus >= 201402L || (defined(_MSC_VER) && defined(_MSVC_LANG) && _MSC_VER > 1900)
 #include <type_traits> // to get non standard platform macro definitions (__GLIBCXX__ for example)
+#endif
+
+/// \file boost/pfr/config.hpp
+/// Contains all the macros that describe Boost.PFR configuration, like BOOST_PFR_ENABLED
+///
+/// \note This header file doesn't require C++14 Standard and supports all C++ compilers, even pre C++14 compilers (C++11, C++03...).
 
 // Reminder:
 //  * MSVC++ 14.2 _MSC_VER == 1927 <- Loophole is known to work (Visual Studio ????)
@@ -17,7 +24,7 @@
 //  * MSVC++ 12.0 _MSC_VER == 1800 (Visual Studio 2013)
 
 #ifdef BOOST_PFR_NOT_SUPPORTED
-#   error Please, don't set BOOST_PFR_NOT_SUPPORTED value manually, use '-DBOOST_PFR_ENABLED=0' instead of it
+#   error Please, do not set BOOST_PFR_NOT_SUPPORTED value manually, use '-DBOOST_PFR_ENABLED=0' instead of it
 #endif
 
 #if defined(_MSC_VER)
