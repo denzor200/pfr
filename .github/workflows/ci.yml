@@ -17,10 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc-14.2
-            cxxstd: "14,17,latest"
+          - toolset: msvc-14.3
+            cxxstd: "14,17,2a"
             addrmd: 32,64
-            os: windows-2022
+            os: windows-latest
           # TODO: enable it
           # - toolset: gcc
           #   cxxstd: "03,11,14,17,2a"
@@ -62,7 +62,7 @@ jobs:
 
   finish:
     needs: windows
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
