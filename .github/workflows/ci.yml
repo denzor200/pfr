@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - toolset: msvc-14.3
-            cxxstd: "14,17,2a"
+            cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-latest
           # TODO: enable it
