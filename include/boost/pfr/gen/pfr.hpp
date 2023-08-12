@@ -110,6 +110,22 @@
 #   endif
 #endif
 
+#ifndef BOOST_PFR_FUNCTION_MACRO_SUPPORTED
+#   if defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER)
+#       define BOOST_PFR_FUNCTION_MACRO_SUPPORTED 1
+#   else
+#       define BOOST_PFR_FUNCTION_MACRO_SUPPORTED 0
+#   endif
+#endif
+
+#ifndef BOOST_PFR_ENABLE_GETTING_NAMES
+#   if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911 && BOOST_PFR_FUNCTION_MACRO_SUPPORTED
+#       define BOOST_PFR_ENABLE_GETTING_NAMES 1
+#   else
+#       define BOOST_PFR_ENABLE_GETTING_NAMES 0
+#   endif
+#endif
+
 #if defined(__has_cpp_attribute)
 #   if __has_cpp_attribute(maybe_unused)
 #       define BOOST_PFR_MAYBE_UNUSED [[maybe_unused]]
@@ -5527,6 +5543,285 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_CORE_HPP
+
+// #include <boost/pfr/core_name.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_CORE_NAME_HPP
+#define BOOST_PFR_CORE_NAME_HPP 
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// #include <boost/pfr/detail/core_name.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// Each core_name provides `boost::pfr::detail::get_name` and
+// `boost::pfr::detail::tie_as_names_tuple` functions.
+//
+// The whole functional of extracting field's names is build on top of those
+// two functions.
+#if BOOST_PFR_ENABLE_GETTING_NAMES
+// #include <boost/pfr/detail/core_name20_static.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+// #include <boost/pfr/detail/core.hpp>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+// #include <boost/pfr/detail/make_integer_sequence.hpp>
+
+// #include <boost/pfr/detail/fields_count.hpp>
+
+#include <type_traits>
+#include <string_view>
+#include <array>
+#include <algorithm> // for std::ranges::copy
+
+namespace boost { namespace pfr { namespace detail {
+
+// TODO: move it outside
+template <class... Args>
+constexpr auto make_sequence_tuple(Args... args) noexcept {
+    return sequence_tuple::tuple<Args...>{ args... };
+}
+
+template <auto& ptr> 
+consteval auto name_of_field_impl() noexcept {
+#ifdef _MSC_VER
+    constexpr std::string_view sv = __FUNCSIG__;
+    constexpr auto last = sv.find_last_not_of(" >(", sv.size() - 6);
+#else
+    constexpr std::string_view sv = __PRETTY_FUNCTION__;
+    constexpr auto last = sv.find_last_not_of(" ])");
+#endif
+    constexpr auto first = sv.find_last_of(":", last);
+    auto res = std::array<char, last - first + 1>{};
+    std::ranges::copy(sv.begin()+first+1,
+                      sv.begin()+last+1,
+                      res.begin());
+    return res;
+}
+
+template <typename T>
+extern const T fake_object;
+
+template <class T, std::size_t I>
+constexpr auto stored_name_of_field = name_of_field_impl<detail::sequence_tuple::get<I>(
+    detail::tie_as_tuple(fake_object<T>) 
+)>();
+
+template <class T, std::size_t... I>
+constexpr auto tie_as_names_tuple_impl(std::index_sequence<I...>) noexcept {
+    return detail::make_sequence_tuple(std::string_view{stored_name_of_field<T, I>.data()}...);
+}
+
+template <class T, std::size_t I>
+constexpr std::string_view get_name() noexcept {
+    static_assert(
+        !std::is_union<T>::value,
+        "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
+    );
+    static_assert(
+        sizeof(T) && BOOST_PFR_USE_CPP17,
+        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
+   );
+   
+   return stored_name_of_field<T, I>.data();  
+}
+
+template <class T>
+constexpr auto tie_as_names_tuple() noexcept {
+    static_assert(
+        !std::is_union<T>::value,
+        "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
+    );
+    static_assert(
+        sizeof(T) && BOOST_PFR_USE_CPP17,
+        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
+    );
+
+    return tie_as_names_tuple_impl<T>(detail::make_index_sequence<detail::fields_count<T>()>{});
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+
+
+#else
+// #include <boost/pfr/detail/core_name14_disabled.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+// TODO: move it outside
+template <class... Args>
+constexpr auto make_sequence_tuple(Args... args) noexcept {
+    return sequence_tuple::tuple<Args...>{ args... };
+}
+
+template <class T, std::size_t I>
+constexpr auto get_name() noexcept {
+    static_assert(
+        sizeof(T) && false,
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20 and compiler that supports __PRETTY_FUNCTION__ or __FUNCSIG__ macro (GCC, Clang or MSVC)."
+    );
+    
+    return nullptr;
+}
+
+template <class T>
+constexpr auto tie_as_names_tuple() noexcept {
+    static_assert(
+        sizeof(T) && false,
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20 and compiler that supports __PRETTY_FUNCTION__ or __FUNCSIG__ macro (GCC, Clang or MSVC)."
+    );
+
+    return detail::make_sequence_tuple(); 
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+
+
+#endif
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME_HPP
+
+
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+// #include <boost/pfr/detail/stdarray.hpp>
+// Copyright (c) 2023 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_STDARRAY_HPP
+#define BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+#include <utility> // metaprogramming stuff
+#include <tuple>
+#include <type_traits> // for std::common_type_t
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class... Types>
+constexpr auto make_stdarray(const Types&... t) noexcept {
+    return std::array<std::common_type_t<Types...>, sizeof...(Types)>{t...};
+}
+
+template <class T, std::size_t... I>
+constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<I...>) noexcept {
+    return make_stdarray(
+        boost::pfr::detail::sequence_tuple::get<I>(t)...
+    );
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/make_integer_sequence.hpp>
+
+
+#include <cstddef>
+
+// #include <boost/pfr/tuple_size.hpp>
+
+
+namespace boost { namespace pfr {
+
+template <std::size_t I, class T>
+constexpr auto get_name() noexcept {
+    return detail::get_name<T, I>();
+}
+
+// FIXME: implement this
+// template<class U, class T>
+// constexpr auto get_name() noexcept {
+//     return detail::sequence_tuple::get_by_type_impl<U>( detail::tie_as_names_tuple<T>() );
+// }
+
+template <class T>
+constexpr auto names_as_array() noexcept {
+    return detail::make_stdarray_from_tietuple(
+        detail::tie_as_names_tuple<T>(),
+        detail::make_index_sequence< tuple_size_v<T> >()
+    );
+}
+
+
+}} // namespace boost::pfr
+
+#endif // BOOST_PFR_CORE_NAME_HPP 
+
 
 // #include <boost/pfr/functions_for.hpp>
 // Copyright (c) 2016-2023 Antony Polukhin
