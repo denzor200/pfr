@@ -200,6 +200,7 @@
 #ifndef BOOST_PFR_DETAIL_CORE17_HPP
 #define BOOST_PFR_DETAIL_CORE17_HPP
 
+
 // #include <boost/pfr/detail/core17_generated.hpp>
 // Copyright (c) 2016-2023 Antony Polukhin
 // Copyright (c) 2023 Denis Mikhailov
@@ -396,6 +397,45 @@ constexpr T&& get_impl(base_from_member<N, T>&& t) noexcept {
     // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
     return std::forward<T>(t.value);
 }
+
+
+template <class T, std::size_t N>
+constexpr T& get_by_type_impl(base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return t.value;
+}
+
+template <class T, std::size_t N>
+constexpr const T& get_by_type_impl(const base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return t.value;
+}
+
+template <class T, std::size_t N>
+constexpr volatile T& get_by_type_impl(volatile base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return t.value;
+}
+
+template <class T, std::size_t N>
+constexpr const volatile T& get_by_type_impl(const volatile base_from_member<N, T>& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return t.value;
+}
+
+template <class T, std::size_t N>
+constexpr T&& get_by_type_impl(base_from_member<N, T>&& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return std::forward<T>(t.value);
+}
+
+template <class T, std::size_t N>
+constexpr const T&& get_by_type_impl(const base_from_member<N, T>&& t) noexcept {
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
+    return std::forward<T>(t.value);
+}
+
+
 
 
 template <class ...Values>
@@ -3227,6 +3267,7 @@ constexpr void tie_as_tuple(T& /*val*/, size_t_<I>) noexcept {
 #ifndef BOOST_PFR_DETAIL_UNSAFE_DECLVAL_HPP
 #define BOOST_PFR_DETAIL_UNSAFE_DECLVAL_HPP
 
+
 // #include <boost/pfr/detail/config.hpp>
 
 
@@ -3636,18 +3677,18 @@ template <std::size_t Index>
 using size_t_ = std::integral_constant<std::size_t, Index >;
 
 template <class T, class F, class I, class = decltype(std::declval<F>()(std::declval<T>(), I{}))>
-void for_each_field_impl_apply(T&& v, F&& f, I i, long) {
+constexpr void for_each_field_impl_apply(T&& v, F&& f, I i, long) {
     std::forward<F>(f)(std::forward<T>(v), i);
 }
 
 template <class T, class F, class I>
-void for_each_field_impl_apply(T&& v, F&& f, I /*i*/, int) {
+constexpr void for_each_field_impl_apply(T&& v, F&& f, I /*i*/, int) {
     std::forward<F>(f)(std::forward<T>(v));
 }
 
 #if !defined(__cpp_fold_expressions) || __cpp_fold_expressions < 201603
 template <class T, class F, std::size_t... I>
-void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
+constexpr void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
      const int v[] = {0, (
          detail::for_each_field_impl_apply(sequence_tuple::get<I>(t), std::forward<F>(f), size_t_<I>{}, 1L),
          0
@@ -3657,7 +3698,7 @@ void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type
 
 
 template <class T, class F, std::size_t... I>
-void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
+constexpr void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
      const int v[] = {0, (
          detail::for_each_field_impl_apply(sequence_tuple::get<I>(std::move(t)), std::forward<F>(f), size_t_<I>{}, 1L),
          0
@@ -3666,12 +3707,12 @@ void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type 
 }
 #else
 template <class T, class F, std::size_t... I>
-void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
+constexpr void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::false_type /*move_values*/) {
      (detail::for_each_field_impl_apply(sequence_tuple::get<I>(t), std::forward<F>(f), size_t_<I>{}, 1L), ...);
 }
 
 template <class T, class F, std::size_t... I>
-void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
+constexpr void for_each_field_impl(T& t, F&& f, std::index_sequence<I...>, std::true_type /*move_values*/) {
      (detail::for_each_field_impl_apply(sequence_tuple::get<I>(std::move(t)), std::forward<F>(f), size_t_<I>{}, 1L), ...);
 }
 #endif
@@ -3728,7 +3769,7 @@ constexpr auto tie_as_tuple(T& val) noexcept {
 }
 
 template <class T, class F, std::size_t... I>
-void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
+constexpr void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
     static_assert(
         !std::is_union<T>::value,
         "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
@@ -3754,7 +3795,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 // The Great Type Loophole (C++14)
 // Initial implementation by Alexandr Poltavsky, http://alexpolt.github.io
 //
-// Description: 
+// Description:
 //  The Great Type Loophole is a technique that allows to exchange type information with template
 //  instantiations. Basically you can assign and read type information during compile time.
 //  Here it is used to detect data members of a data type. I described it for the first time in
@@ -3766,6 +3807,7 @@ void for_each_field_dispatcher(T& t, F&& f, std::index_sequence<I...>) {
 
 #ifndef BOOST_PFR_DETAIL_CORE14_LOOPHOLE_HPP
 #define BOOST_PFR_DETAIL_CORE14_LOOPHOLE_HPP
+
 
 // #include <boost/pfr/detail/config.hpp>
 
@@ -4422,7 +4464,7 @@ namespace typeid_conversions {
 #ifdef _MSC_VER
 #   pragma warning( push )
     // '<<': check operator precedence for possible error; use parentheses to clarify precedence
-#   pragma warning( disable : 4554 ) 
+#   pragma warning( disable : 4554 )
 #endif
 
 constexpr std::size_t native_types_mask = 31;
@@ -5252,19 +5294,24 @@ struct tie_from_structure_tuple : std::tuple<Elements&...> {
 namespace boost { namespace pfr {
 
 /// \brief Returns reference or const reference to a field with index `I` in \aggregate `val`.
+/// Overload taking the type `U` returns reference or const reference to a field
+/// with provided type `U` in \aggregate `val` if there's only one field of such type in `val`.
 ///
 /// \b Example:
 /// \code
 ///     struct my_struct { int i, short s; };
 ///     my_struct s {10, 11};
+///
 ///     assert(boost::pfr::get<0>(s) == 10);
 ///     boost::pfr::get<1>(s) = 0;
+///
+///     assert(boost::pfr::get<int>(s) == 10);
+///     boost::pfr::get<short>(s) = 11;
 /// \endcode
 template <std::size_t I, class T>
 constexpr decltype(auto) get(const T& val) noexcept {
     return detail::sequence_tuple::get<I>( detail::tie_as_tuple(val) );
 }
-
 
 /// \overload get
 template <std::size_t I, class T>
@@ -5290,6 +5337,40 @@ constexpr auto get(T&, std::enable_if_t<!std::is_assignable<T, T>::value>* = nul
 template <std::size_t I, class T>
 constexpr auto get(T&& val, std::enable_if_t< std::is_rvalue_reference<T&&>::value>* = nullptr) noexcept {
     return std::move(detail::sequence_tuple::get<I>( detail::tie_as_tuple(val) ));
+}
+
+
+/// \overload get
+template <class U, class T>
+constexpr const U& get(const T& val) noexcept {
+    return detail::sequence_tuple::get_by_type_impl<const U&>( detail::tie_as_tuple(val) );
+}
+
+
+/// \overload get
+template <class U, class T>
+constexpr U& get(T& val
+#if !BOOST_PFR_USE_CPP17
+    , std::enable_if_t<std::is_assignable<T, T>::value>* = nullptr
+#endif
+) noexcept {
+    return detail::sequence_tuple::get_by_type_impl<U&>( detail::tie_as_tuple(val) );
+}
+
+#if !BOOST_PFR_USE_CPP17
+/// \overload get
+template <class U, class T>
+constexpr U& get(T&, std::enable_if_t<!std::is_assignable<T, T>::value>* = nullptr) noexcept {
+    static_assert(sizeof(T) && false, "====================> Boost.PFR: Calling boost::pfr::get on non const non assignable type is allowed only in C++17");
+    return 0;
+}
+#endif
+
+
+/// \overload get
+template <class U, class T>
+constexpr U&& get(T&& val, std::enable_if_t< std::is_rvalue_reference<T&&>::value>* = nullptr) noexcept {
+    return std::move(detail::sequence_tuple::get_by_type_impl<U&>( detail::tie_as_tuple(val) ));
 }
 
 
@@ -5403,7 +5484,7 @@ constexpr auto structure_tie(T&&, std::enable_if_t< std::is_rvalue_reference<T&&
 ///     assert(sum == 42);
 /// \endcode
 template <class T, class F>
-void for_each_field(T&& value, F&& func) {
+constexpr void for_each_field(T&& value, F&& func) {
     constexpr std::size_t fields_count_val = boost::pfr::detail::fields_count<std::remove_reference_t<T>>();
 
     ::boost::pfr::detail::for_each_field_dispatcher(
@@ -6848,6 +6929,8 @@ constexpr decltype(is_reflectable<T, WhatFor>::value) possible_reflectable(long)
     return is_reflectable<T, WhatFor>::value;
 }
 
+#if BOOST_PFR_ENABLE_IMPLICIT_REFLECTION
+
 template <class T, class WhatFor>
 constexpr bool possible_reflectable(int) noexcept {
 #   if  defined(__cpp_lib_is_aggregate)
@@ -6857,6 +6940,16 @@ constexpr bool possible_reflectable(int) noexcept {
     return true;
 #   endif
 }
+
+#else
+
+template <class T, class WhatFor>
+constexpr bool possible_reflectable(int) noexcept {
+    // negative answer here won't change behaviour in PFR-dependent libraries(like Fusion)
+    return false;
+}
+
+#endif
 
 }}} // namespace boost::pfr::detail
 
@@ -6873,8 +6966,8 @@ constexpr bool possible_reflectable(int) noexcept {
 
 namespace boost { namespace pfr {
 
-/// Has a static const member variable `value` when it known that type T can or can't be reflected using Boost.PFR; otherwise, there is no member variable.
-/// Every user may(and in some difficult cases - should) specialize is_reflectable on his own.
+/// Has a static const member variable `value` when it is known that type T can or can't be reflected using Boost.PFR; otherwise, there is no member variable.
+/// Every user may (and in some difficult cases - should) specialize is_reflectable on his own.
 ///
 /// \b Example:
 /// \code
@@ -6883,11 +6976,9 @@ namespace boost { namespace pfr {
 ///         template<> struct is_reflectable<B, boost_fusion_tag> : std::false_type {};   // 'B' won't be interpreted as reflectable in only Boost Fusion
 ///     }}
 /// \endcode
-/// \note is_reflectable affects is_implicitly_reflectable, the decision made by is_reflectable has more priority than is_implicitly_reflectable,
-///       because is_reflectable is more sharp than is_implicitly_reflectable
-///
+/// \note is_reflectable affects is_implicitly_reflectable, the decision made by is_reflectable is used by is_implicitly_reflectable.
 template<class T, class WhatFor>
-struct is_reflectable { /*  do not has 'value' because value is unknown */ };
+struct is_reflectable { /*  does not have 'value' because value is unknown */ };
 
 // these specs can't be inherited from 'std::integral_constant< bool, boost::pfr::is_reflectable<T, WhatFor>::value >',
 // because it will break the sfinae-friendliness
@@ -6900,17 +6991,15 @@ struct is_reflectable<volatile T, WhatFor> : boost::pfr::is_reflectable<T, WhatF
 template<class T, class WhatFor>
 struct is_reflectable<const volatile T, WhatFor> : boost::pfr::is_reflectable<T, WhatFor> {};
 
-#if BOOST_PFR_ENABLE_IMPLICIT_REFLECTION
 /// Checks the input type for the potential to be reflected.
-/// Specialize is_reflectable if you are disagree with is_implicitly_reflectable's default decision.
+/// Specialize is_reflectable if you disagree with is_implicitly_reflectable's default decision.
 template<class T, class WhatFor>
 using is_implicitly_reflectable = std::integral_constant< bool, boost::pfr::detail::possible_reflectable<T, WhatFor>(1L) >;
 
 /// Checks the input type for the potential to be reflected.
-/// Specialize is_reflectable if you are disagree with is_implicitly_reflectable_v's default decision.
+/// Specialize is_reflectable if you disagree with is_implicitly_reflectable_v's default decision.
 template<class T, class WhatFor>
 constexpr bool is_implicitly_reflectable_v = is_implicitly_reflectable<T, WhatFor>::value;
-#endif
 
 }} // namespace boost::pfr
 
