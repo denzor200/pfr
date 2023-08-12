@@ -8,7 +8,7 @@
 // The Great Type Loophole (C++14)
 // Initial implementation by Alexandr Poltavsky, http://alexpolt.github.io
 //
-// Description: 
+// Description:
 //  The Great Type Loophole is a technique that allows to exchange type information with template
 //  instantiations. Basically you can assign and read type information during compile time.
 //  Here it is used to detect data members of a data type. I described it for the first time in
@@ -20,6 +20,7 @@
 
 #ifndef BOOST_PFR_DETAIL_CORE14_LOOPHOLE_HPP
 #define BOOST_PFR_DETAIL_CORE14_LOOPHOLE_HPP
+#pragma once
 
 #include <boost/pfr/detail/config.hpp>
 
