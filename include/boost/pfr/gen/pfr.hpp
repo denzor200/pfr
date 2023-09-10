@@ -110,19 +110,44 @@
 #   endif
 #endif
 
-#ifndef BOOST_PFR_FUNCTION_MACRO_SUPPORTED
-#   if defined(__clang__) || defined(__GNUC__) || defined(_MSC_VER)
-#       define BOOST_PFR_FUNCTION_MACRO_SUPPORTED 1
+#ifndef BOOST_PFR_CORE_NAME_ENABLED
+#   if  (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L))
+#       if (defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911) \
+         || (defined(__clang_major__) && __clang_major__ >= 12)
+#           define BOOST_PFR_CORE_NAME_ENABLED 1
+#       else
+#           define BOOST_PFR_CORE_NAME_ENABLED 0
+#       endif
 #   else
-#       define BOOST_PFR_FUNCTION_MACRO_SUPPORTED 0
+#       define BOOST_PFR_CORE_NAME_ENABLED 0
 #   endif
 #endif
 
-#ifndef BOOST_PFR_ENABLE_GETTING_NAMES
-#   if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911 && BOOST_PFR_FUNCTION_MACRO_SUPPORTED
-#       define BOOST_PFR_ENABLE_GETTING_NAMES 1
+#ifndef BOOST_PFR_FUNCTION_SIGNATURE
+#   if defined(__FUNCSIG__)
+#       define BOOST_PFR_FUNCTION_SIGNATURE __FUNCSIG__
+#   elif defined(__PRETTY_FUNCTION__) \
+                   || defined(__GNUC__) \
+                   || defined(__clang__)
+#       define BOOST_PFR_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #   else
-#       define BOOST_PFR_ENABLE_GETTING_NAMES 0
+#       define BOOST_PFR_FUNCTION_SIGNATURE ""
+#   endif
+#endif
+
+#ifndef BOOST_PFR_CORE_NAME_PARSING
+#   if defined(_MSC_VER)
+// sizeof("auto __cdecl boost::pfr::detail::name_of_field_impl<") - 1, sizeof(">(void) noexcept") - 1
+#       define BOOST_PFR_CORE_NAME_PARSING (52 /*45 for non boost*/, 16, backward("->"))
+#   elif defined(__clang__)
+// sizeof("auto boost::pfr::detail::name_of_field_impl() [MsvcWorkaround = ") - 1, sizeof("}]") - 1
+#       define BOOST_PFR_CORE_NAME_PARSING (64 /*57 for non boost*/, 2, backward("."))
+#   elif defined(__GNUC__)
+// sizeof("consteval auto boost::pfr::detail::name_of_field_impl() [with MsvcWorkaround = ") - 1, sizeof(")]") - 1
+#       define BOOST_PFR_CORE_NAME_PARSING (79 /*72 for non boost*/, 2, backward("::"))
+#   else
+// Deafult parser for other platforms... Just skip nothing!
+#       define BOOST_PFR_CORE_NAME_PARSING (0, 0, "")
 #   endif
 #endif
 
@@ -463,6 +488,9 @@ struct tuple: tuple_base<
         detail::index_sequence_for<Values...>,
         Values...
     >::tuple_base;
+
+    constexpr static std::size_t size() noexcept { return sizeof...(Values); }
+    constexpr static bool empty() noexcept { return size() == 0; }
 };
 
 
@@ -501,6 +529,10 @@ using tuple_element = std::remove_reference< decltype(
         ::boost::pfr::detail::sequence_tuple::get<I>( std::declval<T>() )
     ) >;
 
+template <class... Args>
+constexpr auto make_sequence_tuple(Args... args) noexcept {
+    return ::boost::pfr::detail::sequence_tuple::tuple<Args...>{ args... };
+}
 
 }}}} // namespace boost::pfr::detail::sequence_tuple
 
@@ -5556,7 +5588,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 //
 
 #ifndef BOOST_PFR_CORE_NAME_HPP
-#define BOOST_PFR_CORE_NAME_HPP 
+#define BOOST_PFR_CORE_NAME_HPP
 
 
 // #include <boost/pfr/detail/config.hpp>
@@ -5585,7 +5617,7 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 //
 // The whole functional of extracting field's names is build on top of those
 // two functions.
-#if BOOST_PFR_ENABLE_GETTING_NAMES
+#if BOOST_PFR_CORE_NAME_ENABLED
 // #include <boost/pfr/detail/core_name20_static.hpp>
 // Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
 //
@@ -5611,47 +5643,248 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 
 // #include <boost/pfr/detail/fields_count.hpp>
 
+// #include <boost/pfr/detail/stdarray.hpp>
+// Copyright (c) 2023 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_STDARRAY_HPP
+#define BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+#include <utility> // metaprogramming stuff
+#include <array>
+#include <type_traits> // for std::common_type_t
+#include <cstddef>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class... Types>
+constexpr auto make_stdarray(const Types&... t) noexcept {
+    return std::array<std::common_type_t<Types...>, sizeof...(Types)>{t...};
+}
+
+template <class T, std::size_t... I>
+constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<I...>, int) noexcept {
+    return detail::make_stdarray(
+        boost::pfr::detail::sequence_tuple::get<I>(t)...
+    );
+}
+
+template <class T>
+constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<>, long) noexcept {
+    return std::array<std::nullptr_t, 0>{};
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/fake_object.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+#define BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class T>
+extern const T fake_object;
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+
+
 #include <type_traits>
 #include <string_view>
 #include <array>
 #include <algorithm> // for std::ranges::copy
+#include <memory> // for std::addressof
 
 namespace boost { namespace pfr { namespace detail {
 
-// TODO: move it outside
-template <class... Args>
-constexpr auto make_sequence_tuple(Args... args) noexcept {
-    return sequence_tuple::tuple<Args...>{ args... };
+struct core_name_skip {
+    std::size_t size_at_begin;
+    std::size_t size_at_end;
+    bool more_at_runtime;
+    bool is_backward;
+    std::string_view until_runtime;
+
+    consteval std::string_view fail() const noexcept {
+        return "";
+    }
+
+    consteval std::string_view apply(std::string_view sv) const noexcept {
+        sv.remove_prefix((std::min)(size_at_begin, sv.size()));
+        sv.remove_suffix((std::min)(size_at_end, sv.size()));
+        if (!more_at_runtime) {
+            if (!until_runtime.empty())
+                return fail(); ///< useless skip condition
+            return sv;
+        }
+        else {
+            // so, we're asked to skip more
+            if (until_runtime.empty())
+                return fail(); ///< condition to skip more wasn't specified
+            const auto found = is_backward ? sv.rfind(until_runtime)
+                                             : sv.find(until_runtime);
+                                             ;
+            const auto cut_until = found + until_runtime.size();
+            const auto safe_cut_until = (std::min)(cut_until, sv.size());
+            return sv.substr(safe_cut_until);
+        }
+    }
+};
+
+struct backward {
+    explicit consteval backward(std::string_view value) noexcept
+        : value(value)
+    {}
+
+    std::string_view value;
+};
+
+consteval core_name_skip make_core_name_skip(std::size_t size_at_begin,
+                                             std::size_t size_at_end,
+                                             bool more_at_runtime,
+                                             std::string_view until_runtime) noexcept
+{
+    return core_name_skip{size_at_begin, size_at_end, more_at_runtime, false, until_runtime};
 }
 
-template <auto& ptr> 
+consteval core_name_skip make_core_name_skip(std::size_t size_at_begin,
+                                             std::size_t size_at_end,
+                                             bool more_at_runtime,
+                                             backward until_runtime) noexcept
+{
+    return core_name_skip{size_at_begin, size_at_end, more_at_runtime, true, until_runtime.value};
+}
+
+consteval core_name_skip make_core_name_skip(std::size_t size_at_begin,
+                                             std::size_t size_at_end,
+                                             auto until_runtime) noexcept
+{
+    return detail::make_core_name_skip(size_at_begin, size_at_end, true, until_runtime);
+}
+
+template <bool Condition>
+consteval void assert_compile_time_legths() noexcept {
+    static_assert(
+        Condition,
+        "====================> Boost.PFR: Extraction of field name is misconfigured for your compiler. "
+        "Please define BOOST_PFR_CORE_NAME_PARSING to correct values. See section "
+        "Limitations of field's names reflection' of the documentation for more information."
+    );
+}
+
+template <class T>
+consteval void failed_to_get_function_name() noexcept {
+    static_assert(
+        sizeof(T) && false,
+        "====================> Boost.PFR: Extraction of field name could not detect your compiler. "
+        "Please make the BOOST_PFR_FUNCTION_SIGNATURE macro use "
+        "correct compiler macro for getting the whole function name. "
+        "Define BOOST_PFR_CORE_NAME_PARSING to correct value after that."
+    );
+}
+
+// it might be compilation failed without this workaround sometimes
+// See https://github.com/llvm/llvm-project/issues/41751 for details
+template <class>
+consteval std::string_view clang_workaround(std::string_view value) noexcept
+{
+    return value;
+}
+
+template <class MsvcWorkaround, auto ptr>
 consteval auto name_of_field_impl() noexcept {
-#ifdef _MSC_VER
-    constexpr std::string_view sv = __FUNCSIG__;
-    constexpr auto last = sv.find_last_not_of(" >(", sv.size() - 6);
-#else
-    constexpr std::string_view sv = __PRETTY_FUNCTION__;
-    constexpr auto last = sv.find_last_not_of(" ])");
-#endif
-    constexpr auto first = sv.find_last_of(":", last);
-    auto res = std::array<char, last - first + 1>{};
-    std::ranges::copy(sv.begin()+first+1,
-                      sv.begin()+last+1,
-                      res.begin());
-    return res;
+    constexpr std::string_view sv = detail::clang_workaround<MsvcWorkaround>(BOOST_PFR_FUNCTION_SIGNATURE);
+    if constexpr (sv.empty()) {
+        detail::failed_to_get_function_name<MsvcWorkaround>();
+        return detail::make_stdarray<char>(0);
+    } else {
+        constexpr auto skip = detail::make_core_name_skip BOOST_PFR_CORE_NAME_PARSING;
+        static_assert(
+            skip.more_at_runtime || skip.until_runtime.empty(),
+            "====================> Boost.PFR: Parser configured in a wrong way. "
+            "It wasn't requested to skip more, but such skip condition was specified in vain. "
+            "Please read your definition of BOOST_PFR_CORE_NAME_PARSING macro patiently "
+            "and fix it."
+        );
+        constexpr auto fn = skip.apply(sv);
+        auto res = std::array<char, fn.size()+1>{};
+        detail::assert_compile_time_legths<!fn.empty()>();
+        std::ranges::copy(fn, res.begin());
+        return res;
+    }
 }
 
-template <typename T>
-extern const T fake_object;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-var-template"
 
+// clang 16 and earlier don't support address of non-static member as template parameter
+// but fortunately it's possible to use C++20 non-type template parameters in another way
+// even in clang 16 and more older clangs
+// all we need is to wrap pointer into 'clang_wrapper_t' and then pass it into template
+template <class T>
+struct clang_wrapper_t {
+    T v;
+};
+template <class T>
+clang_wrapper_t(T) -> clang_wrapper_t<T>;
+
+template <class T>
+constexpr auto make_clang_wrapper(const T& arg) noexcept {
+    return clang_wrapper_t{arg};
+}
+
+#else
+
+template <class T>
+constexpr const T& make_clang_wrapper(const T& arg) noexcept {
+    // It's everything OK with address of non-static member as template parameter support on this compiler
+    // so we don't need a wrapper here, just pass the pointer into template
+    return arg;
+}
+
+#endif
+
+// Without passing 'T' into 'name_of_field_impl' different fields from different structures might have the same name!
+// See https://developercommunity.visualstudio.com/t/__FUNCSIG__-outputs-wrong-value-with-C/10458554 for details
 template <class T, std::size_t I>
-constexpr auto stored_name_of_field = name_of_field_impl<detail::sequence_tuple::get<I>(
-    detail::tie_as_tuple(fake_object<T>) 
-)>();
+constexpr auto stored_name_of_field = detail::name_of_field_impl<T, detail::make_clang_wrapper(std::addressof(detail::sequence_tuple::get<I>(
+    detail::tie_as_tuple(fake_object<T>)
+)))>();
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 template <class T, std::size_t... I>
 constexpr auto tie_as_names_tuple_impl(std::index_sequence<I...>) noexcept {
-    return detail::make_sequence_tuple(std::string_view{stored_name_of_field<T, I>.data()}...);
+    return detail::sequence_tuple::make_sequence_tuple(std::string_view{stored_name_of_field<T, I>.data()}...);
 }
 
 template <class T, std::size_t I>
@@ -5664,8 +5897,8 @@ constexpr std::string_view get_name() noexcept {
         sizeof(T) && BOOST_PFR_USE_CPP17,
         "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
    );
-   
-   return stored_name_of_field<T, I>.data();  
+
+   return stored_name_of_field<T, I>.data();
 }
 
 template <class T>
@@ -5679,7 +5912,7 @@ constexpr auto tie_as_names_tuple() noexcept {
         "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
     );
 
-    return tie_as_names_tuple_impl<T>(detail::make_index_sequence<detail::fields_count<T>()>{});
+    return detail::tie_as_names_tuple_impl<T>(detail::make_index_sequence<detail::fields_count<T>()>{});
 }
 
 }}} // namespace boost::pfr::detail
@@ -5710,19 +5943,13 @@ constexpr auto tie_as_names_tuple() noexcept {
 
 namespace boost { namespace pfr { namespace detail {
 
-// TODO: move it outside
-template <class... Args>
-constexpr auto make_sequence_tuple(Args... args) noexcept {
-    return sequence_tuple::tuple<Args...>{ args... };
-}
-
 template <class T, std::size_t I>
 constexpr auto get_name() noexcept {
     static_assert(
         sizeof(T) && false,
-        "====================> Boost.PFR: Field's names extracting functionality requires C++20 and compiler that supports __PRETTY_FUNCTION__ or __FUNCSIG__ macro (GCC, Clang or MSVC)."
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20."
     );
-    
+
     return nullptr;
 }
 
@@ -5730,10 +5957,10 @@ template <class T>
 constexpr auto tie_as_names_tuple() noexcept {
     static_assert(
         sizeof(T) && false,
-        "====================> Boost.PFR: Field's names extracting functionality requires C++20 and compiler that supports __PRETTY_FUNCTION__ or __FUNCSIG__ macro (GCC, Clang or MSVC)."
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20."
     );
 
-    return detail::make_sequence_tuple(); 
+    return detail::sequence_tuple::make_sequence_tuple();
 }
 
 }}} // namespace boost::pfr::detail
@@ -5750,56 +5977,41 @@ constexpr auto tie_as_names_tuple() noexcept {
 // #include <boost/pfr/detail/sequence_tuple.hpp>
 
 // #include <boost/pfr/detail/stdarray.hpp>
-// Copyright (c) 2023 Denis Mikhailov
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-
-#ifndef BOOST_PFR_DETAIL_STDARRAY_HPP
-#define BOOST_PFR_DETAIL_STDARRAY_HPP
-
-
-// #include <boost/pfr/detail/config.hpp>
-
-
-#include <utility> // metaprogramming stuff
-#include <tuple>
-#include <type_traits> // for std::common_type_t
-
-// #include <boost/pfr/detail/sequence_tuple.hpp>
-
-
-namespace boost { namespace pfr { namespace detail {
-
-template <class... Types>
-constexpr auto make_stdarray(const Types&... t) noexcept {
-    return std::array<std::common_type_t<Types...>, sizeof...(Types)>{t...};
-}
-
-template <class T, std::size_t... I>
-constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<I...>) noexcept {
-    return make_stdarray(
-        boost::pfr::detail::sequence_tuple::get<I>(t)...
-    );
-}
-
-}}} // namespace boost::pfr::detail
-
-#endif // BOOST_PFR_DETAIL_STDARRAY_HPP
-
 
 // #include <boost/pfr/detail/make_integer_sequence.hpp>
 
 
-#include <cstddef>
+#include <cstddef> // for std::size_t
 
 // #include <boost/pfr/tuple_size.hpp>
 
 
+/// \file boost/pfr/core_name.hpp
+/// Contains functions \forcedlink{get_name} and \forcedlink{names_as_array} to know which names each field of any \aggregate has.
+///
+/// \fnrefl for details.
+///
+/// \b Synopsis:
+
 namespace boost { namespace pfr {
 
+/// \brief Returns name of a field with index `I` in \aggregate `T`.
+///
+/// \b Example:
+/// \code
+///     struct my_struct { int i, short s; };
+///
+///     assert(boost::pfr::get_name<0, my_struct>() == "i");
+///     assert(boost::pfr::get_name<1, my_struct>() == "s");
+/// \endcode
 template <std::size_t I, class T>
-constexpr auto get_name() noexcept {
+constexpr
+#ifdef BOOST_PFR_DOXYGEN_INVOKED
+std::string_view
+#else
+auto
+#endif
+get_name() noexcept {
     return detail::get_name<T, I>();
 }
 
@@ -5809,18 +6021,32 @@ constexpr auto get_name() noexcept {
 //     return detail::sequence_tuple::get_by_type_impl<U>( detail::tie_as_names_tuple<T>() );
 // }
 
+/// \brief Creates a `std::array` from names of fields of an \aggregate `T`.
+///
+/// \b Example:
+/// \code
+///     struct my_struct { int i, short s; };
+///     std::array<std::string_view, 2> t = boost::pfr::names_as_array<my_struct>();
+///     assert(t[0] == "i");
+/// \endcode
 template <class T>
-constexpr auto names_as_array() noexcept {
+constexpr
+#ifdef BOOST_PFR_DOXYGEN_INVOKED
+std::array<std::string_view, boost::pfr::tuple_size_v<T>>
+#else
+auto
+#endif
+names_as_array() noexcept {
     return detail::make_stdarray_from_tietuple(
         detail::tie_as_names_tuple<T>(),
-        detail::make_index_sequence< tuple_size_v<T> >()
+        detail::make_index_sequence< tuple_size_v<T> >(),
+        1L
     );
 }
 
-
 }} // namespace boost::pfr
 
-#endif // BOOST_PFR_CORE_NAME_HPP 
+#endif // BOOST_PFR_CORE_NAME_HPP
 
 
 // #include <boost/pfr/functions_for.hpp>
