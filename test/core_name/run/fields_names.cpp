@@ -16,24 +16,32 @@
 
 namespace testing {
 
-namespace {
-
 struct nonconstexpr {
     nonconstexpr() {};
 };
 
 struct Aggregate {
     int member1;
-    nonconstexpr this_is_a_name; 
+    nonconstexpr this_is_a_name;
     std::reference_wrapper<char> c;
-    std::string Forth; 
+    std::string Forth;
 };
+
+struct A {
+    int first;
+    int second;
+};
+
+struct empty {};
 
 void test_get_name_by_id() {
     BOOST_TEST_EQ( ((boost::pfr::get_name<0, Aggregate>())), "member1");
     BOOST_TEST_EQ( ((boost::pfr::get_name<1, Aggregate>())), "this_is_a_name");
     BOOST_TEST_EQ( ((boost::pfr::get_name<2, Aggregate>())), "c");
     BOOST_TEST_EQ( ((boost::pfr::get_name<3, Aggregate>())), "Forth");
+
+    BOOST_TEST_EQ( ((boost::pfr::get_name<0, A>())), "first");
+    BOOST_TEST_EQ( ((boost::pfr::get_name<1, A>())), "second");
 }
 
 void test_get_name_by_type() {
@@ -58,9 +66,11 @@ void test_names_as_array() {
     }
 }
 
-
-} // anonymous namespace
-
+void test_names_as_array_for_empty() {
+    const auto value = boost::pfr::names_as_array<empty>();
+    BOOST_TEST_EQ(value.size(), 0);
+    BOOST_TEST_EQ(value.empty(), true);
+}
 
 } // namespace testing
 
@@ -68,6 +78,7 @@ int main() {
     testing::test_get_name_by_id();
     testing::test_get_name_by_type();
     testing::test_names_as_array();
+    testing::test_names_as_array_for_empty();
 
     return boost::report_errors();
 }
