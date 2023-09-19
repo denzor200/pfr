@@ -110,6 +110,33 @@
 #   endif
 #endif
 
+#ifndef BOOST_PFR_CORE_NAME_ENABLED
+#   if  (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L))
+#       if (defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911) \
+         || (defined(__clang_major__) && __clang_major__ >= 12)
+#           define BOOST_PFR_CORE_NAME_ENABLED 1
+#       else
+#           define BOOST_PFR_CORE_NAME_ENABLED 0
+#       endif
+#   else
+#       define BOOST_PFR_CORE_NAME_ENABLED 0
+#   endif
+#endif
+
+
+#ifndef BOOST_PFR_CORE_NAME_PARSING
+#   if defined(_MSC_VER)
+#       define BOOST_PFR_CORE_NAME_PARSING (sizeof("auto __cdecl boost::pfr::detail::name_of_field_impl<") - 1, sizeof(">(void) noexcept") - 1, backward("->"))
+#   elif defined(__clang__)
+#       define BOOST_PFR_CORE_NAME_PARSING (sizeof("auto boost::pfr::detail::name_of_field_impl() [MsvcWorkaround = ") - 1, sizeof("}]") - 1, backward("."))
+#   elif defined(__GNUC__)
+#       define BOOST_PFR_CORE_NAME_PARSING (sizeof("consteval auto boost::pfr::detail::name_of_field_impl() [with MsvcWorkaround = ") - 1, sizeof(")]") - 1, backward("::"))
+#   else
+// Default parser for other platforms... Just skip nothing!
+#       define BOOST_PFR_CORE_NAME_PARSING (0, 0, "")
+#   endif
+#endif
+
 #if defined(__has_cpp_attribute)
 #   if __has_cpp_attribute(maybe_unused)
 #       define BOOST_PFR_MAYBE_UNUSED [[maybe_unused]]
@@ -447,6 +474,9 @@ struct tuple: tuple_base<
         detail::index_sequence_for<Values...>,
         Values...
     >::tuple_base;
+
+    constexpr static std::size_t size() noexcept { return sizeof...(Values); }
+    constexpr static bool empty() noexcept { return size() == 0; }
 };
 
 
@@ -485,6 +515,10 @@ using tuple_element = std::remove_reference< decltype(
         ::boost::pfr::detail::sequence_tuple::get<I>( std::declval<T>() )
     ) >;
 
+template <class... Args>
+constexpr auto make_sequence_tuple(Args... args) noexcept {
+    return ::boost::pfr::detail::sequence_tuple::tuple<Args...>{ args... };
+}
 
 }}}} // namespace boost::pfr::detail::sequence_tuple
 
@@ -3943,7 +3977,7 @@ struct tuple_of_aligned_storage<sequence_tuple::tuple<Ts...>> {
   using type = sequence_tuple::tuple<internal_aligned_storage<sizeof(Ts),
 #if defined(__GNUC__) && __GNUC__ < 8 && !defined(__x86_64__) && !defined(__CYGWIN__)
       // Before GCC-8 the `alignof` was returning the optimal alignment rather than the minimal one.
-      // We have to adjust the alignemnt because otherwise we get the wrong offset.
+      // We have to adjust the alignment because otherwise we get the wrong offset.
       (alignof(Ts) > 4 ? 4 : alignof(Ts))
 #else
       alignof(Ts)
@@ -4757,7 +4791,7 @@ constexpr size_array<N> get_type_offsets() noexcept {
     return offsets;
 }
 
-///////////////////// Returns array of typeids and zeros if construtor of a type accepts sizeof...(I) parameters
+///////////////////// Returns array of typeids and zeros if constructor of a type accepts sizeof...(I) parameters
 template <class T, std::size_t N, std::size_t... I>
 constexpr void* flat_type_to_array_of_type_ids(std::size_t* types, std::index_sequence<I...>) noexcept
 {
@@ -5527,6 +5561,489 @@ constexpr detail::tie_from_structure_tuple<Elements...> tie_from_structure(Eleme
 }} // namespace boost::pfr
 
 #endif // BOOST_PFR_CORE_HPP
+
+// #include <boost/pfr/core_name.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_CORE_NAME_HPP
+#define BOOST_PFR_CORE_NAME_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// #include <boost/pfr/detail/core_name.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+// Each core_name provides `boost::pfr::detail::get_name` and
+// `boost::pfr::detail::tie_as_names_tuple` functions.
+//
+// The whole functional of extracting field's names is build on top of those
+// two functions.
+#if BOOST_PFR_CORE_NAME_ENABLED
+// #include <boost/pfr/detail/core_name20_static.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+// #include <boost/pfr/detail/core.hpp>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+// #include <boost/pfr/detail/make_integer_sequence.hpp>
+
+// #include <boost/pfr/detail/fields_count.hpp>
+
+// #include <boost/pfr/detail/stdarray.hpp>
+// Copyright (c) 2023 Denis Mikhailov
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#ifndef BOOST_PFR_DETAIL_STDARRAY_HPP
+#define BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+#include <utility> // metaprogramming stuff
+#include <array>
+#include <type_traits> // for std::common_type_t
+#include <cstddef>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class... Types>
+constexpr auto make_stdarray(const Types&... t) noexcept {
+    return std::array<std::common_type_t<Types...>, sizeof...(Types)>{t...};
+}
+
+template <class T, std::size_t... I>
+constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<I...>, int) noexcept {
+    return detail::make_stdarray(
+        boost::pfr::detail::sequence_tuple::get<I>(t)...
+    );
+}
+
+template <class T>
+constexpr auto make_stdarray_from_tietuple(const T& t, std::index_sequence<>, long) noexcept {
+    return std::array<std::nullptr_t, 0>{};
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_STDARRAY_HPP
+
+
+// #include <boost/pfr/detail/fake_object.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+#define BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class T>
+extern const T fake_object;
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_FAKE_OBJECT_HPP
+
+
+#include <type_traits>
+#include <string_view>
+#include <array>
+#include <memory> // for std::addressof
+
+namespace boost { namespace pfr { namespace detail {
+
+struct core_name_skip {
+    std::size_t size_at_begin;
+    std::size_t size_at_end;
+    bool is_backward;
+    std::string_view until_runtime;
+
+    consteval std::string_view apply(std::string_view sv) const noexcept {
+        // We use std::min here to make the compiler diagnostic shorter and
+        // cleaner in case of misconfigured BOOST_PFR_CORE_NAME_PARSING
+        sv.remove_prefix((std::min)(size_at_begin, sv.size()));
+        sv.remove_suffix((std::min)(size_at_end, sv.size()));
+        if (until_runtime.empty()) {
+            return sv;
+        }
+
+        const auto found = is_backward ? sv.rfind(until_runtime)
+                                       : sv.find(until_runtime);
+
+        const auto cut_until = found + until_runtime.size();
+        const auto safe_cut_until = (std::min)(cut_until, sv.size());
+        return sv.substr(safe_cut_until);
+    }
+};
+
+struct backward {
+    explicit consteval backward(std::string_view value) noexcept
+        : value(value)
+    {}
+
+    std::string_view value;
+};
+
+consteval core_name_skip make_core_name_skip(std::size_t size_at_begin,
+                                             std::size_t size_at_end,
+                                             std::string_view until_runtime) noexcept
+{
+    return core_name_skip{size_at_begin, size_at_end, false, until_runtime};
+}
+
+consteval core_name_skip make_core_name_skip(std::size_t size_at_begin,
+                                             std::size_t size_at_end,
+                                             backward until_runtime) noexcept
+{
+    return core_name_skip{size_at_begin, size_at_end, true, until_runtime.value};
+}
+
+// it might be compilation failed without this workaround sometimes
+// See https://github.com/llvm/llvm-project/issues/41751 for details
+template <class>
+consteval std::string_view clang_workaround(std::string_view value) noexcept
+{
+    return value;
+}
+
+template <class MsvcWorkaround, auto ptr>
+consteval auto name_of_field_impl() noexcept {
+    // Some of the following compiler specific macro may be defined only
+    // inside the function body:
+
+#ifndef BOOST_PFR_FUNCTION_SIGNATURE
+#   if defined(__FUNCSIG__)
+#       define BOOST_PFR_FUNCTION_SIGNATURE __FUNCSIG__
+#   elif defined(__PRETTY_FUNCTION__) || defined(__GNUC__) || defined(__clang__)
+#       define BOOST_PFR_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+#   else
+#       define BOOST_PFR_FUNCTION_SIGNATURE ""
+#   endif
+#endif
+
+    constexpr std::string_view sv = detail::clang_workaround<MsvcWorkaround>(BOOST_PFR_FUNCTION_SIGNATURE);
+    static_assert(!sv.empty(),
+        "====================> Boost.PFR: Field reflection parser configured in a wrong way. "
+        "Please define the BOOST_PFR_FUNCTION_SIGNATURE to a compiler specific macro, "
+        "that outputs the whole function signature including non-type template parameters."  
+    );
+
+    constexpr auto skip = detail::make_core_name_skip BOOST_PFR_CORE_NAME_PARSING;
+    static_assert(skip.size_at_begin + skip.size_at_end + skip.until_runtime.size() < sv.size(),
+        "====================> Boost.PFR: Field reflection parser configured in a wrong way. "
+        "It attempts to skip more chars than available. "
+        "Please define BOOST_PFR_CORE_NAME_PARSING to correct values. See documentation section "
+        "'Limitations and Configuration' for more information."
+    );
+    constexpr auto fn = skip.apply(sv);
+    static_assert(
+        !fn.empty(),
+        "====================> Boost.PFR: Extraction of field name is misconfigured for your compiler. "
+        "It skipped all the input, leaving the field name empty. "
+        "Please define BOOST_PFR_CORE_NAME_PARSING to correct values. See documentation section "
+        "'Limitations and Configuration' for more information."
+    );
+    auto res = std::array<char, fn.size()+1>{};
+
+    auto* out = res.data();
+    for (auto x: fn) {
+        *out = x;
+        ++out;
+    }
+
+    return res;
+}
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-var-template"
+
+// clang 16 and earlier don't support address of non-static member as template parameter
+// but fortunately it's possible to use C++20 non-type template parameters in another way
+// even in clang 16 and more older clangs
+// all we need is to wrap pointer into 'clang_wrapper_t' and then pass it into template
+template <class T>
+struct clang_wrapper_t {
+    T v;
+};
+template <class T>
+clang_wrapper_t(T) -> clang_wrapper_t<T>;
+
+template <class T>
+constexpr auto make_clang_wrapper(const T& arg) noexcept {
+    return clang_wrapper_t{arg};
+}
+
+#else
+
+template <class T>
+constexpr const T& make_clang_wrapper(const T& arg) noexcept {
+    // It's everything OK with address of non-static member as template parameter support on this compiler
+    // so we don't need a wrapper here, just pass the pointer into template
+    return arg;
+}
+
+#endif
+
+template <class MsvcWorkaround, auto ptr>
+consteval auto name_of_field() noexcept {
+    // Sanity check: known field name must match the deduced one
+    static_assert(
+        sizeof(MsvcWorkaround)  // do not trigger if `name_of_field()` is not used
+        && std::string_view{
+            detail::name_of_field_impl<
+                core_name_skip, detail::make_clang_wrapper(std::addressof(
+                    fake_object<core_name_skip>.size_at_begin
+                ))
+            >().data()
+        } == "size_at_begin",
+        "====================> Boost.PFR: Extraction of field name is misconfigured for your compiler. "
+        "It does not return the proper field name. "
+        "Please define BOOST_PFR_CORE_NAME_PARSING to correct values. See documentation section "
+        "'Limitations and Configuration' for more information."
+    );
+
+    return detail::name_of_field_impl<MsvcWorkaround, ptr>();
+}
+
+// Storing part of a string literal into an array minimizes the binary size.
+//
+// Without passing 'T' into 'name_of_field' different fields from different structures might have the same name!
+// See https://developercommunity.visualstudio.com/t/__FUNCSIG__-outputs-wrong-value-with-C/10458554 for details
+template <class T, std::size_t I>
+inline constexpr auto stored_name_of_field = detail::name_of_field<T,
+    detail::make_clang_wrapper(std::addressof(detail::sequence_tuple::get<I>(
+        detail::tie_as_tuple(detail::fake_object<T>)
+    )))
+>();
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
+template <class T, std::size_t... I>
+constexpr auto tie_as_names_tuple_impl(std::index_sequence<I...>) noexcept {
+    return detail::sequence_tuple::make_sequence_tuple(std::string_view{stored_name_of_field<T, I>.data()}...);
+}
+
+template <class T, std::size_t I>
+constexpr std::string_view get_name() noexcept {
+    static_assert(
+        !std::is_union<T>::value,
+        "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
+    );
+    static_assert(
+        sizeof(T) && BOOST_PFR_USE_CPP17,
+        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
+   );
+
+   return stored_name_of_field<T, I>.data();
+}
+
+template <class T>
+constexpr auto tie_as_names_tuple() noexcept {
+    static_assert(
+        !std::is_union<T>::value,
+        "====================> Boost.PFR: For safety reasons it is forbidden to reflect unions. See `Reflection of unions` section in the docs for more info."
+    );
+    static_assert(
+        sizeof(T) && BOOST_PFR_USE_CPP17,
+        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
+    );
+
+    return detail::tie_as_names_tuple_impl<T>(detail::make_index_sequence<detail::fields_count<T>()>{});
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME20_STATIC_HPP
+
+
+#else
+// #include <boost/pfr/detail/core_name14_disabled.hpp>
+// Copyright (c) 2023 Bela Schaum, X-Ryl669, Denis Mikhailov.
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+
+// Initial implementation by Bela Schaum, https://github.com/schaumb
+// The way to make it union and UB free by X-Ryl669, https://github.com/X-Ryl669
+//
+
+#ifndef BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+#define BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+
+
+// #include <boost/pfr/detail/config.hpp>
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+
+namespace boost { namespace pfr { namespace detail {
+
+template <class T, std::size_t I>
+constexpr auto get_name() noexcept {
+    static_assert(
+        sizeof(T) && false,
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20."
+    );
+
+    return nullptr;
+}
+
+template <class T>
+constexpr auto tie_as_names_tuple() noexcept {
+    static_assert(
+        sizeof(T) && false,
+        "====================> Boost.PFR: Field's names extracting functionality requires C++20."
+    );
+
+    return detail::sequence_tuple::make_sequence_tuple();
+}
+
+}}} // namespace boost::pfr::detail
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME14_DISABLED_HPP
+
+
+#endif
+
+#endif // BOOST_PFR_DETAIL_CORE_NAME_HPP
+
+
+
+// #include <boost/pfr/detail/sequence_tuple.hpp>
+
+// #include <boost/pfr/detail/stdarray.hpp>
+
+// #include <boost/pfr/detail/make_integer_sequence.hpp>
+
+
+#include <cstddef> // for std::size_t
+
+// #include <boost/pfr/tuple_size.hpp>
+
+
+/// \file boost/pfr/core_name.hpp
+/// Contains functions \forcedlink{get_name} and \forcedlink{names_as_array} to know which names each field of any \aggregate has.
+///
+/// \fnrefl for details.
+///
+/// \b Synopsis:
+
+namespace boost { namespace pfr {
+
+/// \brief Returns name of a field with index `I` in \aggregate `T`.
+///
+/// \b Example:
+/// \code
+///     struct my_struct { int i, short s; };
+///
+///     assert(boost::pfr::get_name<0, my_struct>() == "i");
+///     assert(boost::pfr::get_name<1, my_struct>() == "s");
+/// \endcode
+template <std::size_t I, class T>
+constexpr
+#ifdef BOOST_PFR_DOXYGEN_INVOKED
+std::string_view
+#else
+auto
+#endif
+get_name() noexcept {
+    return detail::get_name<T, I>();
+}
+
+// FIXME: implement this
+// template<class U, class T>
+// constexpr auto get_name() noexcept {
+//     return detail::sequence_tuple::get_by_type_impl<U>( detail::tie_as_names_tuple<T>() );
+// }
+
+/// \brief Creates a `std::array` from names of fields of an \aggregate `T`.
+///
+/// \b Example:
+/// \code
+///     struct my_struct { int i, short s; };
+///     std::array<std::string_view, 2> t = boost::pfr::names_as_array<my_struct>();
+///     assert(t[0] == "i");
+/// \endcode
+template <class T>
+constexpr
+#ifdef BOOST_PFR_DOXYGEN_INVOKED
+std::array<std::string_view, boost::pfr::tuple_size_v<T>>
+#else
+auto
+#endif
+names_as_array() noexcept {
+    return detail::make_stdarray_from_tietuple(
+        detail::tie_as_names_tuple<T>(),
+        detail::make_index_sequence< tuple_size_v<T> >(),
+        1L
+    );
+}
+
+}} // namespace boost::pfr
+
+#endif // BOOST_PFR_CORE_NAME_HPP
+
 
 // #include <boost/pfr/functions_for.hpp>
 // Copyright (c) 2016-2023 Antony Polukhin
@@ -6422,7 +6939,7 @@ namespace detail {
 } // namespace detail
 
 
-/// \brief Compares lhs and rhs for equality using their own comparison and conversion operators; if no operators avalable returns \forcedlink{eq_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for equality using their own comparison and conversion operators; if no operators available returns \forcedlink{eq_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is equal to rhs; false otherwise
 template <class T, class U>
@@ -6437,7 +6954,7 @@ constexpr detail::enable_eq_comp_t<T, U> eq(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Compares lhs and rhs for inequality using their own comparison and conversion operators; if no operators avalable returns \forcedlink{ne_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for inequality using their own comparison and conversion operators; if no operators available returns \forcedlink{ne_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is not equal to rhs; false otherwise
 template <class T, class U>
@@ -6452,7 +6969,7 @@ constexpr detail::enable_ne_comp_t<T, U> ne(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Compares lhs and rhs for less-than using their own comparison and conversion operators; if no operators avalable returns \forcedlink{lt_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for less-than using their own comparison and conversion operators; if no operators available returns \forcedlink{lt_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is less than rhs; false otherwise
 template <class T, class U>
@@ -6467,7 +6984,7 @@ constexpr detail::enable_lt_comp_t<T, U> lt(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Compares lhs and rhs for greater-than using their own comparison and conversion operators; if no operators avalable returns \forcedlink{lt_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for greater-than using their own comparison and conversion operators; if no operators available returns \forcedlink{lt_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is greater than rhs; false otherwise
 template <class T, class U>
@@ -6482,7 +6999,7 @@ constexpr detail::enable_gt_comp_t<T, U> gt(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Compares lhs and rhs for less-equal using their own comparison and conversion operators; if no operators avalable returns \forcedlink{le_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for less-equal using their own comparison and conversion operators; if no operators available returns \forcedlink{le_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is less or equal to rhs; false otherwise
 template <class T, class U>
@@ -6497,7 +7014,7 @@ constexpr detail::enable_le_comp_t<T, U> le(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Compares lhs and rhs for greater-equal using their own comparison and conversion operators; if no operators avalable returns \forcedlink{ge_fields}(lhs, rhs).
+/// \brief Compares lhs and rhs for greater-equal using their own comparison and conversion operators; if no operators available returns \forcedlink{ge_fields}(lhs, rhs).
 ///
 /// \returns true if lhs is greater or equal to rhs; false otherwise
 template <class T, class U>
@@ -6512,7 +7029,7 @@ constexpr detail::enable_ge_comp_t<T, U> ge(const T& lhs, const U& rhs) {
 }
 
 
-/// \brief Hashes value using its own std::hash specialization; if no std::hash specialization avalable returns \forcedlink{hash_fields}(value).
+/// \brief Hashes value using its own std::hash specialization; if no std::hash specialization available returns \forcedlink{hash_fields}(value).
 ///
 /// \returns std::size_t with hash of the value
 template <class T>
